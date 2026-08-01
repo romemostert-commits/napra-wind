@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#0f1310"/>
+  <rect x="8" y="8" width="496" height="496" rx="104" fill="none" stroke="#2a322b" stroke-width="4"/>
+
+  <!-- windage axis with reticle hashes -->
+  <g stroke="#63706a" stroke-width="6" stroke-linecap="round">
+    <line x1="96" y1="256" x2="416" y2="256"/>
+  </g>
+  <!-- minor hashes every 0.2 -->
+  <g stroke="#63706a" stroke-width="4">
+    <line x1="140" y1="246" x2="140" y2="266"/>
+    <line x1="180" y1="248" x2="180" y2="264"/>
+    <line x1="220" y1="248" x2="220" y2="264"/>
+    <line x1="292" y1="248" x2="292" y2="264"/>
+    <line x1="332" y1="248" x2="332" y2="264"/>
+    <line x1="372" y1="246" x2="372" y2="266"/>
+  </g>
+
+  <!-- red reticle centre -->
+  <line x1="256" y1="150" x2="256" y2="362" stroke="#e0392f" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- wind bracket in brass: min-max bar with end caps + centre dot, offset to the right -->
+  <g stroke="#c9a24b" stroke-width="11" stroke-linecap="round">
+    <line x1="286" y1="200" x2="382" y2="200"/>
+    <line x1="286" y1="184" x2="286" y2="216"/>
+    <line x1="382" y1="184" x2="382" y2="216"/>
+  </g>
+  <circle cx="334" cy="200" r="15" fill="#c9a24b"/>
+
+  <!-- target subtension window (corner brackets) around a green-ish cluster below -->
+  <g stroke="#6fae7f" stroke-width="9" stroke-linecap="round" fill="none">
+    <path d="M196 300 v34 M196 300 h22"/>
+    <path d="M196 334 h22"/>
+    <path d="M316 300 v34 M316 300 h-22"/>
+    <path d="M316 334 h-22"/>
+  </g>
+  <g stroke="#6fae7f" stroke-width="10" stroke-linecap="round">
+    <line x1="224" y1="317" x2="288" y2="317"/>
+  </g>
+  <circle cx="256" cy="317" r="12" fill="#6fae7f"/>
+</svg>

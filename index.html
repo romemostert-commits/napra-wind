@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>NAPRA Wind Bracket</title>
+<meta name="description" content="Wind hold bracket calculator for NAPRA precision rifle matches.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f1310">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Wind Bracket">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap');
+  :root{
+    --bg:#0f1310; --panel:#161b17; --panel-2:#1c221d; --line:#2a322b;
+    --ink:#e8ede8; --ink-dim:#9aa79c; --ink-faint:#63706a;
+    --brass:#c9a24b; --brass-dim:#8f7233;
+    --ok:#6fae7f; --warn:#d8a13a; --bad:#d1584a;
+    --mono:'DM Mono','SF Mono',ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  body{padding:18px 16px 90px;max-width:980px;margin:0 auto}
+  h1{font-size:20px;font-weight:600;letter-spacing:-0.01em;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1 .tag{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--brass);border:1px solid var(--brass-dim);border-radius:3px;padding:2px 6px;letter-spacing:0.08em}
+  .sub{color:var(--ink-dim);font-size:13px;margin-top:4px;max-width:660px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--ink-faint);margin:24px 0 10px;display:flex;align-items:center;gap:8px}
+  .eyebrow::after{content:"";flex:1;height:1px;background:var(--line)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  label{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+  input,select{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;color:var(--ink);font-family:var(--mono);font-size:14px;padding:8px 10px;width:100%;transition:border-color .12s}
+  input:focus,select:focus{outline:none;border-color:var(--brass)}
+  input::placeholder{color:var(--ink-faint)}
+  button{font-family:var(--sans);font-weight:500;font-size:13px;border-radius:5px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);padding:8px 14px;cursor:pointer;transition:all .12s;display:inline-flex;align-items:center;gap:6px}
+  button:hover{border-color:var(--brass);color:#fff}
+  button.primary{background:var(--brass);border-color:var(--brass);color:#241d07;font-weight:600}
+  button.primary:hover{background:#d8b25c}
+  .stage-nav{display:flex;gap:6px;flex-wrap:wrap}
+  .stage-btn{font-family:var(--mono);font-size:12px;padding:7px 11px;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--ink-dim);background:var(--panel);transition:all .12s;position:relative}
+  .stage-btn:hover{border-color:var(--brass-dim);color:var(--ink)}
+  .stage-btn.on{border-color:var(--brass);color:var(--brass);background:var(--panel-2)}
+  .stage-btn .n{font-size:10px;color:var(--ink-faint);display:block;letter-spacing:.05em}
+  .stage-btn.has::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--brass)}
+  .stage-head{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:4px}
+  .stage-title{font-size:17px;font-weight:600}
+  .stage-pos{font-size:12px;color:var(--ink-dim);font-family:var(--mono)}
+  .tgt-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0}
+  .tgt-tab{font-family:var(--mono);font-size:12px;padding:6px 10px;border:1px solid var(--line);border-radius:5px;cursor:pointer;color:var(--ink-dim);background:var(--panel-2)}
+  .tgt-tab.on{border-color:var(--brass);color:var(--brass)}
+  .tgt-tab .sz{color:var(--ink-faint)}
+  .tgt-tab.has{color:var(--ink)}
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:13px}
+  th{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--ink-faint);text-align:right;padding:6px 8px;font-weight:400;border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .muted{color:var(--ink-dim)} .faint{color:var(--ink-faint)}
+  .empty{color:var(--ink-faint);font-family:var(--mono);font-size:12px;text-align:center;padding:18px}
+  .del{cursor:pointer;color:var(--ink-faint);font-family:var(--mono)}
+  .del:hover{color:var(--bad)}
+  .rset:hover td{background:var(--panel-2)}
+  .rset-on td{background:rgba(201,162,75,.12)}
+  .rset-on td:first-child{color:var(--brass);box-shadow:inset 2px 0 0 var(--brass)}
+  .hint{font-size:12px;color:var(--ink-dim);margin-top:8px;line-height:1.55}
+  .hint b{color:var(--ink);font-weight:500}
+  code{font-family:var(--mono);background:var(--panel-2);padding:1px 5px;border-radius:3px;font-size:12.5px}
+  svg{display:block;width:100%;overflow:visible}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--ink-dim)}
+  .callouts{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+  .callout{border-left:3px solid var(--line);background:var(--panel-2);border-radius:0 6px 6px 0;padding:9px 12px}
+  .callout.ok{border-left-color:var(--ok)}
+  .callout.warn{border-left-color:var(--warn)}
+  .callout.bad{border-left-color:var(--bad)}
+  .co-head{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+  .co-tgt{font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .co-pill{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:2px 7px;border-radius:3px}
+  .co-pill.ok{background:rgba(111,174,127,.16);color:var(--ok)}
+  .co-pill.warn{background:rgba(216,161,58,.16);color:var(--warn)}
+  .co-pill.bad{background:rgba(209,88,74,.16);color:var(--bad)}
+  .co-body{font-size:13px;color:var(--ink-dim);line-height:1.5}
+  .co-body b{color:var(--ink);font-weight:500}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:10px}
+  .toolbar button{font-size:12px;padding:6px 10px}
+  .egrid{display:grid;grid-template-columns:minmax(120px,1.4fr) 120px 110px;gap:8px 10px;align-items:center}
+  .egrid .gh{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint);padding-bottom:2px}
+  .egrid .tname{font-family:var(--mono);font-size:13px;color:var(--ink)}
+  .egrid .tname .tmeta{color:var(--ink-faint);font-size:11px}
+  .egrid input{padding:7px 9px}
+  .egrid input.hold{border-color:var(--brass-dim);text-align:center}
+  .dirtog{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden;width:100%}
+  .dirtog button{flex:1;border:none;border-radius:0;background:var(--panel-2);color:var(--ink-faint);padding:7px 0;font-family:var(--mono);font-size:12px}
+  .dirtog button:hover{color:var(--ink)}
+  .dirtog button.onL{background:var(--brass);color:#241d07;font-weight:600}
+  .dirtog button.onR{background:var(--brass);color:#241d07;font-weight:600}
+  .stage-dir-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 12px;margin-bottom:14px;
+    background:var(--panel-2);border:1px solid var(--line);border-radius:6px}
+  .sd-label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim)}
+  .sd-tog{width:auto}
+  .sd-tog button{padding:6px 16px;font-size:12px}
+  .sd-hint{font-size:11px;color:var(--ink-faint)}
+  .ov-tag{font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--brass);border:1px solid var(--brass-dim);border-radius:3px;padding:1px 4px;margin-left:4px}
+  .dirtog.ov{box-shadow:0 0 0 1px var(--brass-dim)}
+  .dirtog.ov button.onL,.dirtog.ov button.onR{background:var(--brass);color:#241d07}
+  .submit-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;flex-wrap:wrap}
+  .set-tag{font-family:var(--mono);font-size:12px;color:var(--brass)}
+  @media(max-width:560px){.egrid{grid-template-columns:1fr 104px 84px;gap:6px 6px}.egrid input{font-size:13px}}
+</style>
+</head>
+<body>
+
+<h1 id="matchTitle">NAPRA <span class="tag" id="matchTag">IPRF</span></h1>
+<p class="sub">Pick a match, then a stage. Log each wind reading — the bracket builds live and the offsets tell you how to correct one target from another. Your readings stay in the app as you move between stages and matches.</p>
+
+<div class="eyebrow">Match</div>
+<div class="row" style="align-items:center;gap:10px">
+  <select id="matchSel" style="max-width:340px" onchange="selectMatch(this.value)"></select>
+  <div style="display:flex;gap:8px;margin-left:auto">
+    <button onclick="saveData()" title="Download all your readings as a file">↓ Save</button>
+    <button onclick="document.getElementById('loadFile').click()" title="Restore readings from a saved file">↑ Load</button>
+    <input type="file" id="loadFile" accept="application/json" style="display:none" onchange="loadData(event)">
+  </div>
+</div>
+
+<div class="eyebrow">Stage</div>
+<div class="stage-nav" id="stageNav"></div>
+
+<div class="eyebrow">Log a wind reading</div>
+<div class="card">
+  <div class="stage-head">
+    <div><span class="stage-title" id="sTitle"></span> <span class="stage-pos" id="sPos"></span></div>
+    <button class="ghost" style="border-color:var(--line);color:var(--ink-dim)" onclick="clearStage()">Clear this stage</button>
+  </div>
+  <div id="entryArea"></div>
+</div>
+
+<div class="eyebrow">Readings <span id="rCount" style="color:var(--ink-faint)"></span></div>
+<div class="card" style="padding:8px 0"><div id="readingsTable"></div></div>
+
+<div class="eyebrow">Bracket vs target width</div>
+<div class="card" id="bracketArea"><div class="empty">No readings on this stage yet.</div></div>
+
+<div class="eyebrow">Target-to-target offsets</div>
+<div class="card" id="offsetArea"><div class="empty">Log readings on two or more targets to see offsets.</div></div>
+
+<script>
+/* ---- Matchbook data: IPRF targets, width in MRAD ---- */
+const MATCHES = [
+  {
+    id:"heja", name:"NAPRA Heja", date:"11 Jul 2026",
+    stages:[
+      {id:1,label:"S1",name:"Rooftop",pos:"Rooftop",
+       tgts:[{n:"T1",d:302,mil:0.41},{n:"T2",d:454,mil:0.44},{n:"T3",d:551,mil:0.41},{n:"T4",d:652,mil:0.42}]},
+      {id:2,label:"S2",name:"Wide Angles",pos:"Cactus (3 pos) + Drum",
+       tgts:[{n:"T1",d:449,mil:0.39},{n:"T2",d:450,mil:0.39},{n:"T3",d:451,mil:0.39}]},
+      {id:3,label:"S3",name:"The Hunt",pos:"Top of concrete block",
+       tgts:[{n:"T1",d:300,mil:0.33},{n:"T2",d:420,mil:0.48},{n:"T3",d:520,mil:0.58},{n:"T4",d:649,mil:0.52}]},
+      {id:4,label:"S4",name:"Marais Trading Skills",pos:"4 barricade + window · timed tiebreaker",
+       tgts:[{n:"T1",d:406,mil:0.49},{n:"T2",d:409,mil:0.49}]},
+      {id:5,label:"S5",name:"Windage & Elevation check",pos:"Prone on bed · bipod",
+       tgts:[{n:"T1-1",d:375,mil:0.80},{n:"T1-2",d:375,mil:0.24},{n:"T1-3",d:375,mil:0.40},
+             {n:"T2-1",d:552,mil:0.72},{n:"T2-2",d:552,mil:0.30},{n:"T2-3",d:552,mil:0.41},
+             {n:"T3-1",d:606,mil:0.66},{n:"T3-2",d:606,mil:0.31}]},
+      {id:6,label:"S6",name:"BERGER Left-Right Troopline",pos:"1 prone · bipod",
+       tgts:[{n:"T1",d:438,mil:0.40},{n:"T2",d:505,mil:0.40},{n:"T3",d:546,mil:0.41},{n:"T4",d:606,mil:0.41},{n:"T5",d:668,mil:0.45}]},
+      {id:7,label:"S7",name:"Bakkie",pos:"4 positions",
+       tgts:[{n:"T1",d:434,mil:0.46},{n:"T2",d:436,mil:0.40},{n:"T3",d:537,mil:0.47},{n:"T4",d:540,mil:0.42}]},
+      {id:8,label:"S8",name:"Windows",pos:"8 windows",
+       tgts:[{n:"T1-1",d:396,mil:0.44},{n:"T1-2",d:396,mil:0.38}]},
+    ]
+  },
+  {
+    id:"outjo", name:"Outjo Shoot", date:"6 Jun 2025",
+    stages:[
+      {id:1,label:"S1",name:"Rails and Drum",pos:"2 rails + drum · 3 positions",
+       tgts:[{n:"T1.1",d:359,mil:0.49},{n:"T1.2",d:359,mil:0.35},{n:"T2.1",d:447,mil:0.45},{n:"T2.2",d:447,mil:0.34}]},
+      {id:2,label:"S2",name:"Troopline",pos:"1 position · near to far",
+       tgts:[{n:"T1",d:400,mil:0.38},{n:"T2",d:485,mil:0.41},{n:"T3",d:549,mil:0.46},{n:"T4",d:694,mil:0.43},{n:"T5",d:844,mil:0.47}]},
+      {id:3,label:"S3",name:"Stompe",pos:"5 positions · 2 racks",
+       tgts:[{n:"T1",d:573,mil:0.44},{n:"T2",d:477,mil:0.42}]},
+      {id:4,label:"S4",name:"Kitchen Windows",pos:"8 positions · 5 used",
+       tgts:[{n:"T1",d:489,mil:0.41},{n:"T2",d:444,mil:0.45}]},
+      {id:5,label:"S5",name:"Pole Dance",pos:"3 positions · 3 racks",
+       tgts:[{n:"T1",d:328,mil:0.38},{n:"T2",d:477,mil:0.42},{n:"T3",d:470,mil:0.48}]},
+      {id:6,label:"S6",name:"Flat Wheel",pos:"3 positions · 2 racks",
+       tgts:[{n:"T1.1",d:506,mil:0.44},{n:"T1.2",d:506,mil:0.40},{n:"T1.3",d:506,mil:0.35},{n:"T2",d:518,mil:0.39}]},
+      {id:7,label:"S7",name:"Ou Tol",pos:"3 positions · 2 repeated",
+       tgts:[{n:"T1",d:600,mil:0.42},{n:"T2",d:650,mil:0.42}]},
+      {id:8,label:"S8",name:"Barricade",pos:"PRS barricade · timed tiebreaker",
+       tgts:[{n:"T1",d:563,mil:0.44},{n:"T2",d:577,mil:0.43}]},
+    ]
+  },
+];
+
+/* State keyed by match. store[matchId] = { sets:{stageId:[...]}, draft:{}, ref:{}, hi:{} } */
+const S={ activeMatch:"heja", activeStage:1, store:{}, seq:0 };
+function initStore(){
+  MATCHES.forEach(m=>{
+    if(S.store[m.id])return;
+    const st={sets:{},draft:{},ref:{},hi:{},stageDir:{},activeStage:1};
+    m.stages.forEach(s=>{st.sets[s.id]=[];st.draft[s.id]={holds:{},tenths:{},dirByTgt:{}};st.stageDir[s.id]='R';});
+    S.store[m.id]=st;
+  });
+}
+initStore();
+
+const unit='MIL';
+function fmt(v){return v==null||isNaN(v)?'—':v.toFixed(1);}
+function fmt2(v){return v==null||isNaN(v)?'—':v.toFixed(2);}
+function fmtSigned(v){if(v==null||isNaN(v))return'—';return(v>0?'+':'')+v.toFixed(1);}
+/* --- match/store accessors --- */
+function curMatch(){return MATCHES.find(m=>m.id===S.activeMatch);}
+function ST(){return S.store[S.activeMatch];}          // current match's store
+function stages(){return curMatch().stages;}
+function stage(id){return stages().find(s=>s.id===id);}
+function curStage(){return stage(S.activeStage);}
+function tgtObj(sid,n){return stage(sid).tgts.find(t=>t.n===n);}
+function setsOf(sid){return ST().sets[sid]||[];}
+function draftOf(sid){return ST().draft[sid];}
+function hiOf(sid){return ST().hi[sid];}
+function refOf(sid){return ST().ref[sid];}
+function stageDirOf(sid){const sd=ST().stageDir;return (sd&&sd[sid])||'R';}
+/* effective direction for a target in the current draft: explicit override, else stage default */
+function effDir(sid,n){
+  const d=draftOf(sid);
+  const ov=d.dirByTgt&&d.dirByTgt[n];
+  return ov||stageDirOf(sid);
+}
+function isOverridden(sid,n){
+  const d=draftOf(sid);
+  const ov=d.dirByTgt&&d.dirByTgt[n];
+  return !!(ov && ov!==stageDirOf(sid));
+}
+/* signed hold: left = negative, right = positive. dir in set.notes[n].dir ('L'|'R'); default R. */
+function signOf(dir){return dir==='L'?-1:1;}
+function holdsFor(sid,n){
+  return setsOf(sid).map(set=>{
+    const v=set.holds[n]; if(v==null||isNaN(v))return null;
+    const dir=set.notes&&set.notes[n]&&set.notes[n].dir;
+    return signOf(dir)*Math.abs(v);
+  }).filter(v=>v!=null);
+}
+function holdsWithSet(sid,n){
+  const out=[];
+  setsOf(sid).forEach((set,idx)=>{
+    const v=set.holds[n]; if(v==null||isNaN(v))return;
+    const dir=set.notes&&set.notes[n]&&set.notes[n].dir;
+    out.push({val:signOf(dir)*Math.abs(v),setIdx:idx});
+  });
+  return out;
+}
+function bracket(sid,n){
+  const rs=holdsFor(sid,n); if(!rs.length)return null;
+  const min=Math.min(...rs),max=Math.max(...rs);
+  return {min,max,center:(min+max)/2,mean:rs.reduce((a,b)=>a+b,0)/rs.length,spread:max-min,n:rs.length,
+    crosses:min<0&&max>0};
+}
+function fmtDial(v){
+  if(v==null||isNaN(v))return '—';
+  const a=Math.abs(v);
+  if(a<0.05)return '0.0';
+  return a.toFixed(1)+' '+(v<0?'L':'R');
+}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* --- match selection & persistence --- */
+function renderMatchSel(){
+  const sel=document.getElementById('matchSel');
+  sel.innerHTML=MATCHES.map(m=>{
+    const n=countReadings(m.id);
+    return `<option value="${m.id}" ${m.id===S.activeMatch?'selected':''}>${esc(m.name)} · ${esc(m.date)}${n?` (${n} sets)`:''}</option>`;
+  }).join('');
+  document.getElementById('matchTitle').innerHTML=`${esc(curMatch().name)} <span class="tag">IPRF · ${esc(curMatch().date)}</span>`;
+}
+function countReadings(mid){
+  const st=S.store[mid]; if(!st)return 0;
+  return Object.values(st.sets).reduce((a,arr)=>a+arr.length,0);
+}
+function selectMatch(mid){
+  S.activeMatch=mid;
+  S.activeStage=ST().activeStage||stages()[0].id;
+  renderAll();
+}
+function saveData(){
+  const payload={app:"napra-wind",version:2,seq:S.seq,activeMatch:S.activeMatch,store:S.store};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`napra-wind-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function loadData(ev){
+  const file=ev.target.files[0]; if(!file)return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const p=JSON.parse(rd.result);
+      if(!p||!p.store)throw new Error("Not a valid save file");
+      // merge into current store shape, preserving any matches not in the file
+      Object.keys(p.store).forEach(mid=>{
+        if(S.store[mid])S.store[mid]=p.store[mid];
+      });
+      S.seq=Math.max(S.seq,p.seq||0);
+      if(p.activeMatch&&MATCHES.find(m=>m.id===p.activeMatch))S.activeMatch=p.activeMatch;
+      S.activeStage=ST().activeStage||stages()[0].id;
+      renderAll();
+    }catch(e){ alert("Couldn't load that file — "+e.message); }
+    ev.target.value="";
+  };
+  rd.readAsText(file);
+}
+
+function renderAll(){renderMatchSel();renderStageNav();renderStageHead();renderEntry();renderReadings();renderBracket();renderOffsets();}
+function goStage(id){S.activeStage=id;ST().activeStage=id;renderAll();}
+
+function renderStageNav(){
+  document.getElementById('stageNav').innerHTML=stages().map(s=>{
+    const has=setsOf(s.id).length?'has':'';
+    return `<div class="stage-btn ${s.id===S.activeStage?'on':''} ${has}" onclick="goStage(${s.id})">
+      <span class="n">${s.label}</span>${esc(s.name)}</div>`;
+  }).join('');
+}
+function renderStageHead(){
+  const s=curStage();
+  document.getElementById('sTitle').textContent=`Stage ${s.id}: ${s.name}`;
+  document.getElementById('sPos').textContent='· '+s.pos;
+}
+function renderEntry(){
+  const s=curStage(), d=draftOf(s.id);
+  const nextSet=setsOf(s.id).length+1;
+  const sdir=stageDirOf(s.id);
+  const rows=s.tgts.map(t=>{
+    const ht=d.tenths&&d.tenths[t.n]!=null?d.tenths[t.n]:'';
+    const eff=effDir(s.id,t.n);
+    const over=isOverridden(s.id,t.n);
+    // if overridden, mark the row so it's visually distinct from inherited
+    return `<div class="tname">${esc(t.n)} <span class="tmeta">${t.d}m · ${fmt2(t.mil)}</span>${over?' <span class="ov-tag">override</span>':''}</div>
+      <div class="dirtog ${over?'ov':''}">
+        <button class="${eff==='L'?'onL':''}" onclick="setTgtDir('${t.n}','L')">◄ L</button>
+        <button class="${eff==='R'?'onR':''}" onclick="setTgtDir('${t.n}','R')">R ►</button>
+      </div>
+      <input class="hold" type="number" step="1" inputmode="numeric" value="${ht}" placeholder="tenths" data-t="${esc(t.n)}"
+        oninput="draftHold('${t.n}',this.value)" onkeydown="entryKey(event)">`;
+  }).join('');
+  document.getElementById('entryArea').innerHTML=`
+    <div class="stage-dir-row">
+      <span class="sd-label">Wind this stage</span>
+      <div class="dirtog sd-tog">
+        <button class="${sdir==='L'?'onL':''}" onclick="setStageDir('L')">◄ Left</button>
+        <button class="${sdir==='R'?'onR':''}" onclick="setStageDir('R')">Right ►</button>
+      </div>
+      <span class="sd-hint">sets all targets — change any below to override</span>
+    </div>
+    <div class="egrid">
+      <div class="gh">Target</div><div class="gh">Direction</div><div class="gh">Hold · tenths</div>
+      ${rows}
+    </div>
+    <div class="submit-row">
+      <span class="set-tag">Now entering Reading ${nextSet}</span>
+      <div style="display:flex;gap:8px">
+        <button onclick="clearDraft()">Clear row</button>
+        <button class="primary" onclick="submitSet()">Submit Reading ${nextSet} ✓</button>
+      </div>
+    </div>
+    <p class="hint">Set the stage wind once with <b>Left / Right</b>, then just type each hold in <b>tenths of a MIL</b> (<code>5</code> = 0.5, <code>12</code> = 1.2). Only tap a target's own L/R when its wind differs. Enter jumps to the next target.</p>`;
+}
+/* stage default: apply to all targets that aren't explicitly overridden */
+function setStageDir(val){
+  const s=curStage();
+  if(!ST().stageDir)ST().stageDir={};
+  ST().stageDir[s.id]=val;
+  renderEntry();
+}
+/* per-target: if tapping the side that already equals the stage default, clear the override (back to inherit);
+   otherwise set an explicit override to the tapped side */
+function setTgtDir(n,val){
+  const s=curStage(), d=draftOf(s.id);
+  if(!d.dirByTgt)d.dirByTgt={};
+  if(val===stageDirOf(s.id)){ delete d.dirByTgt[n]; }   // matches stage → inherit
+  else { d.dirByTgt[n]=val; }                            // differs → override
+  renderEntry();
+}
+function draftHold(n,v){const d=draftOf(curStage().id);
+  if(v===''){if(d.tenths)delete d.tenths[n]; return;}
+  if(!d.tenths)d.tenths={};
+  const num=parseInt(v,10);
+  if(isNaN(num))delete d.tenths[n]; else d.tenths[n]=num;}
+function entryKey(e){
+  if(e.key!=='Enter')return;
+  const inputs=[...document.querySelectorAll('#entryArea input.hold')];
+  const i=inputs.indexOf(e.target);
+  if(i>-1&&i<inputs.length-1)inputs[i+1].focus(); else submitSet();
+}
+function submitSet(){
+  const s=curStage(), d=draftOf(s.id), tenths=d.tenths||{};
+  const holds={};
+  Object.keys(tenths).forEach(n=>{const t=tenths[n];if(t!=null&&!isNaN(t))holds[n]=t/10;});
+  if(!Object.keys(holds).length){return;}
+  const notes={};
+  // record the EFFECTIVE direction (override if set, else stage default) for each target that has a hold
+  Object.keys(holds).forEach(n=>{ notes[n]={dir:effDir(s.id,n)}; });
+  setsOf(s.id).push({id:++S.seq,holds,notes,t:new Date().toISOString()});
+  ST().draft[s.id]={holds:{},tenths:{},dirByTgt:{}};
+  renderAll();
+}
+function clearDraft(){ST().draft[curStage().id]={holds:{},tenths:{},dirByTgt:{}};renderEntry();}
+function removeSet(sid,id){ST().sets[sid]=setsOf(sid).filter(x=>x.id!==id);if(hiOf(sid)!=null)ST().hi[sid]=null;renderAll();}
+function clearStage(){ST().sets[S.activeStage]=[];ST().hi[S.activeStage]=null;renderAll();}
+function toggleHi(sid,idx){ST().hi[sid]=(hiOf(sid)===idx)?null:idx;renderReadings();renderBracket();}
+
+function renderReadings(){
+  const s=curStage(), sets=setsOf(s.id);
+  document.getElementById('rCount').textContent=sets.length?`(${sets.length} set${sets.length>1?'s':''} on this stage)`:'';
+  const el=document.getElementById('readingsTable');
+  if(!sets.length){el.innerHTML='<div class="empty">No readings submitted on this stage.</div>';return;}
+  // matrix: rows = reading sets, cols = targets
+  const cols=s.tgts;
+  const head=`<tr><th>Set</th><th>Time</th>${cols.map(t=>`<th>${esc(t.n)}</th>`).join('')}<th></th></tr>`;
+  const body=sets.map((set,idx)=>{
+    const tm=new Date(set.t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+    const on=hiOf(s.id)===idx;
+    const cells=cols.map(t=>{
+      const v=set.holds[t.n];
+      const dir=set.notes&&set.notes[t.n]&&set.notes[t.n].dir;
+      if(v==null)return `<td style="color:var(--ink-faint)">·</td>`;
+      const signed=signOf(dir)*Math.abs(v);
+      return `<td style="color:var(--brass)">${fmtDial(signed)}</td>`;
+    }).join('');
+    return `<tr class="rset ${on?'rset-on':''}" onclick="toggleHi(${s.id},${idx})" style="cursor:pointer">
+      <td>#${idx+1}</td><td class="muted">${tm}</td>${cells}
+      <td><span class="del" onclick="event.stopPropagation();removeSet(${s.id},${set.id})">✕</span></td></tr>`;
+  }).join('');
+  const note=sets.length>1?`<p class="hint" style="padding:6px 12px 2px">Tap a set to highlight its holds on the bracket chart below.</p>`:'';
+  el.innerHTML=`${note}<div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+function strategy(b,t){
+  const cH=Math.round(b.center*10)/10;
+  const dial=fmtDial(cH);
+  // Wind swung through both sides of center — genuinely reversing condition
+  if(b.crosses && b.spread>t.mil){
+    return {level:'bad',word:'REVERSING',
+      text:`Wind swung both sides of centre (${fmtDial(b.min)} to ${fmtDial(b.max)}) — spread ${fmt(b.spread)} exceeds target (${fmt2(t.mil)}). Wait for it to pick a side; hold <b>${dial}</b> only on a settled condition, or hold the edge you actually see.`};
+  }
+  if(b.spread<=t.mil*0.5){
+    return {level:'ok',word:'SEND',
+      text:`Hold <b>${dial}</b> and send. Spread (${fmt(b.spread)}) sits well inside the target — any hold in the bracket hits.`};
+  }
+  if(b.spread<=t.mil){
+    return {level:'warn',word:'TIGHT',
+      text:`Favor <b>${dial}</b>. Spread (${fmt(b.spread)}) nearly fills the target (${fmt2(t.mil)}) — centre the hold and break on a steady condition.`};
+  }
+  const over=b.spread-t.mil;
+  return {level:'bad',word:'BRACKET',
+    text:`Spread (${fmt(b.spread)}) exceeds target width (${fmt2(t.mil)}) by ${fmt(over)}. No single hold covers it — favor <b>${dial}</b> and break on lulls, or hold the edge for the condition you see.`};
+}
+
+function renderBracket(){
+  const s=curStage();
+  const active=s.tgts.filter(t=>holdsFor(s.id,t.n).length);
+  const el=document.getElementById('bracketArea');
+  if(!active.length){el.innerHTML='<div class="empty">No readings on this stage yet.</div>';return;}
+
+  let lo=Infinity,hi=-Infinity;
+  active.forEach(t=>{const b=bracket(s.id,t.n);lo=Math.min(lo,b.min-t.mil/2);hi=Math.max(hi,b.max+t.mil/2);});
+  // always include 0 (reticle centre) in view
+  lo=Math.min(lo,0);hi=Math.max(hi,0);
+  if(lo===hi){lo-=1;hi+=1;}
+  const pad=(hi-lo)*0.12||0.4;lo-=pad;hi+=pad;
+
+  const W=680,L=120,R=40,rowH=72,topAxis=54,H=active.length*rowH+topAxis+10;
+  const x=v=>L+((v-lo)/(hi-lo))*(W-L-R);
+  const x0=x(0);
+
+  // --- reticle-style windage axis across the top ---
+  const axisY=topAxis-14;
+  let axis=`<line x1="${L-4}" y1="${axisY}" x2="${W-6}" y2="${axisY}" stroke="var(--ink-dim)" stroke-width="1"/>`;
+  // minor hashes every 0.2 mil, major + label every whole mil
+  const startMil=Math.ceil(lo/0.2)*0.2;
+  // pixel gap between 0.2 steps — only label decimals if there's room
+  const stepPx=Math.abs(x(0.2)-x(0));
+  const labelDecimals=stepPx>=26;
+  for(let v=startMil; v<=hi+1e-9; v+=0.2){
+    const px=x(v), whole=Math.abs(v-Math.round(v))<0.001;
+    const isZero=Math.abs(v)<0.001;
+    if(isZero){
+      axis+=`<line x1="${px}" y1="${axisY-11}" x2="${px}" y2="${axisY+11}" stroke="#e0392f" stroke-width="1.4"/>`;
+      axis+=`<text x="${px}" y="${axisY-15}" fill="#e0392f" font-size="9.5" font-family="var(--mono)" text-anchor="middle">0</text>`;
+      continue;
+    }
+    const h=whole?9:4.5;
+    const col=whole?'var(--ink)':'var(--ink-faint)';
+    axis+=`<line x1="${px}" y1="${axisY-h}" x2="${px}" y2="${axisY+h}" stroke="${col}" stroke-width="${whole?1.2:0.8}"/>`;
+    if(whole){
+      axis+=`<text x="${px}" y="${axisY-15}" fill="var(--ink-dim)" font-size="9.5" font-family="var(--mono)" text-anchor="middle">${Math.abs(Math.round(v))}</text>`;
+    } else if(labelDecimals){
+      // decimal tenths label below the axis (.2 .. .8), absolute value, leading zero stripped
+      const tenth=Math.round(Math.abs(v)*10)%10; // 2,4,6,8
+      axis+=`<text x="${px}" y="${axisY+16}" fill="var(--ink-faint)" font-size="8" font-family="var(--mono)" text-anchor="middle">.${tenth}</text>`;
+    }
+  }
+  // faint full-height guide at every whole mil + red centre line down the rows
+  let guides='';
+  for(let v=Math.ceil(lo);v<=hi;v++){
+    if(Math.abs(v)<0.001)continue;
+    guides+=`<line x1="${x(v)}" y1="${topAxis}" x2="${x(v)}" y2="${H-6}" stroke="var(--line)" stroke-width="1"/>`;
+  }
+  guides+=`<line x1="${x0}" y1="${topAxis-24}" x2="${x0}" y2="${H-6}" stroke="#e0392f" stroke-width="1.2" opacity="0.55"/>`;
+
+  let rows='', callouts='';
+  active.forEach((t,i)=>{
+    const b=bracket(s.id,t.n), y=topAxis+i*rowH+rowH/2-4;
+    const x1=x(b.min),x2=x(b.max),xc=x(b.center);
+    const strat=strategy(b,t);
+    const col=strat.level==='ok'?'var(--ok)':(strat.level==='warn'?'var(--warn)':'var(--bad)');
+    const half=t.mil/2, sx1=x(b.center-half),sx2=x(b.center+half);
+
+    // target subtension window: reticle-style bracketed box (corner ticks, not full rect)
+    const boxT=y-15, boxB=y+15, cap=6;
+    const win=`
+      <line x1="${sx1}" y1="${boxT}" x2="${sx1}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
+      <line x1="${sx2}" y1="${boxT}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
+      <line x1="${sx1}" y1="${boxT}" x2="${sx1+cap}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
+      <line x1="${sx1}" y1="${boxB}" x2="${sx1+cap}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
+      <line x1="${sx2-cap}" y1="${boxT}" x2="${sx2}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
+      <line x1="${sx2-cap}" y1="${boxB}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>`;
+
+    // individual holds as floating reticle dots, tagged with their set for highlighting
+    const hset=hiOf(s.id);
+    const pts=holdsWithSet(s.id,t.n);
+    // sort by x so we can stagger overlapping labels
+    const sorted=[...pts].sort((a,b)=>a.val-b.val);
+    let dots='', labels='';
+    let lastLx=-999, tier=0;
+    sorted.forEach(p=>{
+      const px=x(p.val);
+      const dim = hset!=null && hset!==p.setIdx;
+      const dotCol = dim?'var(--ink-faint)':'var(--ink)';
+      const dotR = (hset===p.setIdx)?3:2;
+      dots+=`<circle cx="${px}" cy="${y}" r="${dotR}" fill="${dotCol}" data-set="${p.setIdx}"
+        style="cursor:pointer" onclick="toggleHi(${s.id},${p.setIdx})"/>`;
+      // stagger label vertically if too close to previous label
+      if(px-lastLx<24){tier=(tier+1)%2;}else{tier=0;}
+      lastLx=px;
+      const ly=y-9-tier*10;
+      const labCol = dim?'var(--ink-faint)':(hset===p.setIdx?'var(--brass)':'var(--ink-dim)');
+      const labW = hset===p.setIdx?'500':'400';
+      labels+=`<text x="${px}" y="${ly}" fill="${labCol}" font-size="8.5" font-family="var(--mono)"
+        text-anchor="middle" font-weight="${labW}">${fmtDial(p.val)}</text>`;
+    });
+
+    rows+=`
+      <text x="${L-12}" y="${y-2}" fill="var(--ink)" font-size="12" font-family="var(--mono)" text-anchor="end">${esc(t.n)}</text>
+      <text x="${L-12}" y="${y+11}" fill="var(--ink-faint)" font-size="9.5" font-family="var(--mono)" text-anchor="end">n=${b.n} · w ${fmt2(t.mil)}</text>
+      ${win}
+      <line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="${x1}" y1="${y-5}" x2="${x1}" y2="${y+5}" stroke="${col}" stroke-width="1.6"/>
+      <line x1="${x2}" y1="${y-5}" x2="${x2}" y2="${y+5}" stroke="${col}" stroke-width="1.6"/>
+      ${labels}
+      ${dots}
+      <circle cx="${xc}" cy="${y}" r="3.4" fill="${col}" stroke="var(--panel)" stroke-width="1.3"/>
+      <text x="${x2+8}" y="${y+4}" fill="${col}" font-size="10.5" font-family="var(--mono)">${fmt(b.spread)}</text>`;
+
+    const pill=strat.level==='ok'?'ok':(strat.level==='warn'?'warn':'bad');
+    const word=strat.word;
+    callouts+=`<div class="callout ${pill}">
+      <div class="co-head"><span class="co-tgt">${esc(t.n)}</span><span class="co-pill ${pill}">${word}</span></div>
+      <div class="co-body">${strat.text}</div></div>`;
+  });
+
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wind hold brackets on a Mil-XT style windage scale">
+      ${guides}${axis}${rows}</svg>
+    <div class="legend">
+      <span><span style="color:#e0392f">┃</span> reticle centre (0)</span>
+      <span>● centre hold</span><span>· each reading</span>
+      <span>⌐¬ target width</span>
+      <span><span style="color:var(--ok)">■</span> send</span>
+      <span><span style="color:var(--warn)">■</span> tight</span>
+      <span><span style="color:var(--bad)">■</span> bracket</span>
+    </div>
+    <div class="callouts">${callouts}</div>`;
+}
+
+function renderOffsets(){
+  const s=curStage();
+  const active=s.tgts.filter(t=>holdsFor(s.id,t.n).length);
+  const el=document.getElementById('offsetArea');
+  if(active.length<2){el.innerHTML='<div class="empty">Log readings on two or more targets to see offsets.</div>';return;}
+  const refKey=refOf(s.id)&&active.find(t=>t.n===refOf(s.id))?refOf(s.id):active[0].n;
+  const rB=bracket(s.id,refKey);
+  const sel=`<div class="row" style="margin-bottom:12px"><div><label>Reference (your confirmed hit)</label>
+    <select onchange="ST().ref[${s.id}]=this.value;renderOffsets()">
+    ${active.map(t=>`<option value="${t.n}" ${t.n===refKey?'selected':''}>${esc(t.n)}</option>`).join('')}
+    </select></div></div>`;
+  const rows=active.filter(t=>t.n!==refKey).map(t=>{
+    const b=bracket(s.id,t.n), d=b.center-rB.center;
+    // d>0 means this target's hold is further right than the reference
+    const adj=Math.abs(d)<0.05?'same hold':`${fmt(Math.abs(d))} ${d>0?'right':'left'}`;
+    return `<tr><td>${esc(t.n)}</td><td style="color:var(--brass)">${fmtSigned(d)}</td>
+      <td class="${Math.abs(d)<0.05?'muted':''}">${adj}</td>
+      <td class="muted">${fmtDial(b.center)}</td></tr>`;
+  }).join('');
+  el.innerHTML=`${sel}<p class="hint" style="margin-bottom:10px">Confirm your hit on <b>${esc(refKey)}</b> (centre hold <code>${fmtDial(rB.center)}</code>), then adjust by the offset to jump to each target's hold.</p>
+    <table><thead><tr><th>Target</th><th>Offset</th><th>Adjust</th><th>Its hold</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+renderAll();
+</script>
+</body>
+</html>
