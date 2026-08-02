@@ -445,25 +445,46 @@ function renderReadings(){
   el.innerHTML=`${note}<div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 
+/* Guaranteed-hit band: each reading covers the target if the hold is within ±(w'/2) of it,
+   using practical width w' = 0.9 * target width. The band that hits under EVERY reading is the
+   intersection: [max(hold) - w'/2, min(hold) + w'/2]. Exists only if spread <= w'. */
+const PRACTICAL=0.9;
+function safeBand(b,t){
+  const wEff=t.mil*PRACTICAL, half=wEff/2;
+  const lo=b.max-half, hi=b.min+half;   // note: floor from the RIGHTmost reading, ceiling from the LEFTmost
+  const width=hi-lo;                     // >0 means a real overlap exists
+  return {wEff, lo, hi, width, mid:(lo+hi)/2, exists:width>0};
+}
+
 function strategy(b,t){
+  const band=safeBand(b,t);
   const cH=Math.round(b.center*10)/10;
   const dial=fmtDial(cH);
-  // Wind swung through both sides of center — genuinely reversing condition
-  if(b.crosses && b.spread>t.mil){
-    return {level:'bad',word:'REVERSING',
-      text:`Wind swung both sides of centre (${fmtDial(b.min)} to ${fmtDial(b.max)}) — spread ${fmt(b.spread)} exceeds target (${fmt2(t.mil)}). Wait for it to pick a side; hold <b>${dial}</b> only on a settled condition, or hold the edge you actually see.`};
+
+  // A real overlap exists → there's a hold that hits under ALL readings.
+  if(band.exists){
+    const midDial=fmtDial(band.mid);
+    // band.lo/hi are TARGET-position coords; convert to hold labels (fmtDial flips to hold side)
+    const a=fmtDial(band.lo), c=fmtDial(band.hi);
+    const margin=band.width/2; // ± margin around the mid hold
+    const marginStr=margin>=0.1?fmt(margin):fmt2(margin);
+    // Comfortable vs tight: how much of the practical width is the band using up?
+    if(band.width>=band.wEff*0.5){
+      return {level:'ok',word:'SEND', band,
+        text:`Hold <b>${midDial}</b> and send — hits under every read. Any hold from <b>${a}</b> to <b>${c}</b> works (±${marginStr} margin).`};
+    }
+    return {level:'warn',word:'TIGHT', band,
+      text:`Hold <b>${midDial}</b> — still hits under all reads but the safe band is narrow (${a} to ${c}, ±${marginStr}). Centre it and break on a steady condition.`};
   }
-  if(b.spread<=t.mil*0.5){
-    return {level:'ok',word:'SEND',
-      text:`Hold <b>${dial}</b> and send. Spread (${fmt(b.spread)}) sits well inside the target — any hold in the bracket hits.`};
+
+  // No overlap: no single hold covers every reading.
+  const gap=b.spread-band.wEff; // how far past the practical width the spread runs
+  if(b.crosses){
+    return {level:'bad',word:'REVERSING', band,
+      text:`Wind swung both sides of centre — reads span ${fmtDial(b.min)} to ${fmtDial(b.max)}, ${fmt(gap)} wider than the target can absorb. No hold hits under all of them. Wait for it to settle, then hold <b>${dial}</b>, or hold the edge you actually see.`};
   }
-  if(b.spread<=t.mil){
-    return {level:'warn',word:'TIGHT',
-      text:`Favor <b>${dial}</b>. Spread (${fmt(b.spread)}) nearly fills the target (${fmt2(t.mil)}) — centre the hold and break on a steady condition.`};
-  }
-  const over=b.spread-t.mil;
-  return {level:'bad',word:'BRACKET',
-    text:`Spread (${fmt(b.spread)}) exceeds target width (${fmt2(t.mil)}) by ${fmt(over)}. No single hold covers it — favor <b>${dial}</b> and break on lulls, or hold the edge for the condition you see.`};
+  return {level:'bad',word:'BRACKET', band,
+    text:`Reads span ${fmt(b.spread)} — ${fmt(gap)} more than the target's usable width (${fmt2(band.wEff)}). No single hold covers them all — favor <b>${dial}</b> and break on lulls, or hold the edge for the condition you see.`};
 }
 
 function renderBracket(){
@@ -521,20 +542,35 @@ function renderBracket(){
   let rows='', callouts='';
   active.forEach((t,i)=>{
     const b=bracket(s.id,t.n), y=topAxis+i*rowH+rowH/2-4;
-    const x1=x(b.min),x2=x(b.max),xc=x(b.center);
+    const x1=x(b.min),x2=x(b.max);
     const strat=strategy(b,t);
+    const band=strat.band;
     const col=strat.level==='ok'?'var(--ok)':(strat.level==='warn'?'var(--warn)':'var(--bad)');
-    const half=t.mil/2, sx1=x(b.center-half),sx2=x(b.center+half);
+    // recommended hold sits at the safe-band midpoint when a band exists, else the bracket centre
+    const recV = band.exists ? band.mid : b.center;
+    const xc=x(recV);
+    // full target-width window (faint reference), centred on the recommended hold
+    const half=t.mil/2, sx1=x(recV-half),sx2=x(recV+half);
 
     // target subtension window: reticle-style bracketed box (corner ticks, not full rect)
     const boxT=y-15, boxB=y+15, cap=6;
     const win=`
-      <line x1="${sx1}" y1="${boxT}" x2="${sx1}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
-      <line x1="${sx2}" y1="${boxT}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
-      <line x1="${sx1}" y1="${boxT}" x2="${sx1+cap}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
-      <line x1="${sx1}" y1="${boxB}" x2="${sx1+cap}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
-      <line x1="${sx2-cap}" y1="${boxT}" x2="${sx2}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>
-      <line x1="${sx2-cap}" y1="${boxB}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.9"/>`;
+      <line x1="${sx1}" y1="${boxT}" x2="${sx1}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
+      <line x1="${sx2}" y1="${boxT}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
+      <line x1="${sx1}" y1="${boxT}" x2="${sx1+cap}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
+      <line x1="${sx1}" y1="${boxB}" x2="${sx1+cap}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
+      <line x1="${sx2-cap}" y1="${boxT}" x2="${sx2}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
+      <line x1="${sx2-cap}" y1="${boxB}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>`;
+
+    // SAFE BAND: the intersection of all readings' acceptance windows (holds that hit under every read)
+    let safe='';
+    if(band.exists){
+      const bx1=x(band.lo), bx2=x(band.hi);
+      safe=`<rect x="${Math.min(bx1,bx2)}" y="${y-9}" width="${Math.abs(bx2-bx1)}" height="18" rx="2"
+        fill="${col}" opacity="0.18"/>
+        <line x1="${bx1}" y1="${y-9}" x2="${bx1}" y2="${y+9}" stroke="${col}" stroke-width="1" opacity="0.6"/>
+        <line x1="${bx2}" y1="${y-9}" x2="${bx2}" y2="${y+9}" stroke="${col}" stroke-width="1" opacity="0.6"/>`;
+    }
 
     // individual holds as floating reticle dots, tagged with their set for highlighting
     const hset=hiOf(s.id);
@@ -564,6 +600,7 @@ function renderBracket(){
       <text x="${L-12}" y="${y-2}" fill="var(--ink)" font-size="12" font-family="var(--mono)" text-anchor="end">${esc(t.n)}</text>
       <text x="${L-12}" y="${y+11}" fill="var(--ink-faint)" font-size="9.5" font-family="var(--mono)" text-anchor="end">n=${b.n} · w ${fmt2(t.mil)}</text>
       ${win}
+      ${safe}
       <line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${col}" stroke-width="2.5" stroke-linecap="round"/>
       <line x1="${x1}" y1="${y-5}" x2="${x1}" y2="${y+5}" stroke="${col}" stroke-width="1.6"/>
       <line x1="${x2}" y1="${y-5}" x2="${x2}" y2="${y+5}" stroke="${col}" stroke-width="1.6"/>
@@ -583,8 +620,8 @@ function renderBracket(){
       ${guides}${axis}${rows}</svg>
     <div class="legend">
       <span><span style="color:#e0392f">┃</span> reticle centre</span>
-      <span>● target (label = hold)</span><span>· each reading</span>
-      <span>⌐¬ target width</span>
+      <span>● recommended hold</span><span>· each reading</span>
+      <span>▬ safe band (hits all reads)</span>
       <span><span style="color:var(--ok)">■</span> send</span>
       <span><span style="color:var(--warn)">■</span> tight</span>
       <span><span style="color:var(--bad)">■</span> bracket</span>
@@ -598,22 +635,24 @@ function renderOffsets(){
   const el=document.getElementById('offsetArea');
   if(active.length<2){el.innerHTML='<div class="empty">Log readings on two or more targets to see offsets.</div>';return;}
   const refKey=refOf(s.id)&&active.find(t=>t.n===refOf(s.id))?refOf(s.id):active[0].n;
-  const rB=bracket(s.id,refKey);
+  // recommended hold per target: safe-band midpoint if a band exists, else bracket centre
+  function recOf(n){const b=bracket(s.id,n),bd=safeBand(b,tgtObj(s.id,n));return bd.exists?bd.mid:b.center;}
+  const rRec=recOf(refKey);
   const sel=`<div class="row" style="margin-bottom:12px"><div><label>Reference (your confirmed hit)</label>
     <select onchange="ST().ref[${s.id}]=this.value;renderOffsets()">
     ${active.map(t=>`<option value="${t.n}" ${t.n===refKey?'selected':''}>${esc(t.n)}</option>`).join('')}
     </select></div></div>`;
   const rows=active.filter(t=>t.n!==refKey).map(t=>{
-    const b=bracket(s.id,t.n), d=b.center-rB.center;
-    // signed space is TARGET position (right=+). d>0 => target further right => more left wind => hold LEFT.
-    // Show the offset as a HOLD delta so its sign matches the adjust wording (right=+).
+    const rec=recOf(t.n), d=rec-rRec;
+    // signed space is TARGET position (right=+). d>0 => target further right => hold moves LEFT.
+    // Show offset as a HOLD delta so its sign matches the adjust wording (right=+).
     const holdDelta=-d;
     const adj=Math.abs(d)<0.05?'same hold':`${fmt(Math.abs(d))} ${d>0?'left':'right'}`;
     return `<tr><td>${esc(t.n)}</td><td style="color:var(--brass)">${fmtSigned(holdDelta)}</td>
       <td class="${Math.abs(d)<0.05?'muted':''}">${adj}</td>
-      <td class="muted">${fmtDial(b.center)}</td></tr>`;
+      <td class="muted">${fmtDial(rec)}</td></tr>`;
   }).join('');
-  el.innerHTML=`${sel}<p class="hint" style="margin-bottom:10px">Confirm your hit on <b>${esc(refKey)}</b> (centre hold <code>${fmtDial(rB.center)}</code>), then adjust by the offset to jump to each target's hold.</p>
+  el.innerHTML=`${sel}<p class="hint" style="margin-bottom:10px">Confirm your hit on <b>${esc(refKey)}</b> (hold <code>${fmtDial(rRec)}</code>), then adjust by the offset to jump to each target's recommended hold.</p>
     <table><thead><tr><th>Target</th><th>Offset</th><th>Adjust</th><th>Its hold</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
