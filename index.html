@@ -237,8 +237,10 @@ function isOverridden(sid,n){
   const ov=d.dirByTgt&&d.dirByTgt[n];
   return !!(ov && ov!==stageDirOf(sid));
 }
-/* signed hold: left = negative, right = positive. dir in set.notes[n].dir ('L'|'R'); default R. */
-function signOf(dir){return dir==='L'?-1:1;}
+/* PLOT SIGN = target position relative to reticle centre.
+   Wind FROM left pushes bullet right, you hold into it (reticle goes left) → target sits RIGHT of centre → positive.
+   Wind FROM right → target LEFT → negative. */
+function signOf(dir){return dir==='L'?1:-1;}
 function holdsFor(sid,n){
   return setsOf(sid).map(set=>{
     const v=set.holds[n]; if(v==null||isNaN(v))return null;
@@ -261,11 +263,13 @@ function bracket(sid,n){
   return {min,max,center:(min+max)/2,mean:rs.reduce((a,b)=>a+b,0)/rs.length,spread:max-min,n:rs.length,
     crosses:min<0&&max>0};
 }
+/* A signed value is a TARGET position (right=+). The HOLD to apply is into the wind,
+   i.e. the opposite side: target-right (+) means hold LEFT. Label shows the hold. */
 function fmtDial(v){
   if(v==null||isNaN(v))return '—';
   const a=Math.abs(v);
   if(a<0.05)return '0.0';
-  return a.toFixed(1)+' '+(v<0?'L':'R');
+  return a.toFixed(1)+' '+(v>0?'L':'R');
 }
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
@@ -343,8 +347,8 @@ function renderEntry(){
     // if overridden, mark the row so it's visually distinct from inherited
     return `<div class="tname">${esc(t.n)} <span class="tmeta">${t.d}m · ${fmt2(t.mil)}</span>${over?' <span class="ov-tag">override</span>':''}</div>
       <div class="dirtog ${over?'ov':''}">
-        <button class="${eff==='L'?'onL':''}" onclick="setTgtDir('${t.n}','L')">◄ L</button>
-        <button class="${eff==='R'?'onR':''}" onclick="setTgtDir('${t.n}','R')">R ►</button>
+        <button class="${eff==='L'?'onL':''}" onclick="setTgtDir('${t.n}','L')">◄ From L</button>
+        <button class="${eff==='R'?'onR':''}" onclick="setTgtDir('${t.n}','R')">From R ►</button>
       </div>
       <input class="hold" type="number" step="1" inputmode="numeric" value="${ht}" placeholder="tenths" data-t="${esc(t.n)}"
         oninput="draftHold('${t.n}',this.value)" onkeydown="entryKey(event)">`;
@@ -353,13 +357,13 @@ function renderEntry(){
     <div class="stage-dir-row">
       <span class="sd-label">Wind this stage</span>
       <div class="dirtog sd-tog">
-        <button class="${sdir==='L'?'onL':''}" onclick="setStageDir('L')">◄ Left</button>
-        <button class="${sdir==='R'?'onR':''}" onclick="setStageDir('R')">Right ►</button>
+        <button class="${sdir==='L'?'onL':''}" onclick="setStageDir('L')">◄ From L</button>
+        <button class="${sdir==='R'?'onR':''}" onclick="setStageDir('R')">From R ►</button>
       </div>
-      <span class="sd-hint">sets all targets — change any below to override</span>
+      <span class="sd-hint">where the wind comes from — change any target below to override</span>
     </div>
     <div class="egrid">
-      <div class="gh">Target</div><div class="gh">Direction</div><div class="gh">Hold · tenths</div>
+      <div class="gh">Target</div><div class="gh">Wind from</div><div class="gh">Hold · tenths</div>
       ${rows}
     </div>
     <div class="submit-row">
@@ -369,7 +373,7 @@ function renderEntry(){
         <button class="primary" onclick="submitSet()">Submit Reading ${nextSet} ✓</button>
       </div>
     </div>
-    <p class="hint">Set the stage wind once with <b>Left / Right</b>, then just type each hold in <b>tenths of a MIL</b> (<code>5</code> = 0.5, <code>12</code> = 1.2). Only tap a target's own L/R when its wind differs. Enter jumps to the next target.</p>`;
+    <p class="hint">Set where the wind comes <b>from</b> (L / R), then type each hold in <b>tenths of a MIL</b> (<code>5</code> = 0.5, <code>12</code> = 1.2). Wind from the left → you hold into it, so the target plots right of centre and the hold reads "L". Only change a target's own wind when it differs. Enter jumps to the next target.</p>`;
 }
 /* stage default: apply to all targets that aren't explicitly overridden */
 function setStageDir(val){
@@ -578,8 +582,8 @@ function renderBracket(){
   el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wind hold brackets on a Mil-XT style windage scale">
       ${guides}${axis}${rows}</svg>
     <div class="legend">
-      <span><span style="color:#e0392f">┃</span> reticle centre (0)</span>
-      <span>● centre hold</span><span>· each reading</span>
+      <span><span style="color:#e0392f">┃</span> reticle centre</span>
+      <span>● target (label = hold)</span><span>· each reading</span>
       <span>⌐¬ target width</span>
       <span><span style="color:var(--ok)">■</span> send</span>
       <span><span style="color:var(--warn)">■</span> tight</span>
@@ -601,9 +605,11 @@ function renderOffsets(){
     </select></div></div>`;
   const rows=active.filter(t=>t.n!==refKey).map(t=>{
     const b=bracket(s.id,t.n), d=b.center-rB.center;
-    // d>0 means this target's hold is further right than the reference
-    const adj=Math.abs(d)<0.05?'same hold':`${fmt(Math.abs(d))} ${d>0?'right':'left'}`;
-    return `<tr><td>${esc(t.n)}</td><td style="color:var(--brass)">${fmtSigned(d)}</td>
+    // signed space is TARGET position (right=+). d>0 => target further right => more left wind => hold LEFT.
+    // Show the offset as a HOLD delta so its sign matches the adjust wording (right=+).
+    const holdDelta=-d;
+    const adj=Math.abs(d)<0.05?'same hold':`${fmt(Math.abs(d))} ${d>0?'left':'right'}`;
+    return `<tr><td>${esc(t.n)}</td><td style="color:var(--brass)">${fmtSigned(holdDelta)}</td>
       <td class="${Math.abs(d)<0.05?'muted':''}">${adj}</td>
       <td class="muted">${fmtDial(b.center)}</td></tr>`;
   }).join('');
