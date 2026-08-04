@@ -42,6 +42,11 @@
   button.primary{background:var(--brass);border-color:var(--brass);color:#241d07;font-weight:600}
   button.primary:hover{background:#d8b25c}
   .stage-nav{display:flex;gap:6px;flex-wrap:wrap}
+  .class-toggle{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .class-toggle button{border:none;border-radius:0;background:var(--panel-2);color:var(--ink-dim);
+    font-family:var(--mono);font-size:12px;padding:8px 14px;cursor:pointer;transition:all .12s}
+  .class-toggle button:hover{color:var(--ink)}
+  .class-toggle button.on{background:var(--brass);color:#241d07;font-weight:600}
   .stage-btn{font-family:var(--mono);font-size:12px;padding:7px 11px;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:var(--ink-dim);background:var(--panel);transition:all .12s;position:relative}
   .stage-btn:hover{border-color:var(--brass-dim);color:var(--ink)}
   .stage-btn.on{border-color:var(--brass);color:var(--brass);background:var(--panel-2)}
@@ -120,7 +125,11 @@
 
 <div class="eyebrow">Match</div>
 <div class="row" style="align-items:center;gap:10px">
-  <select id="matchSel" style="max-width:340px" onchange="selectMatch(this.value)"></select>
+  <select id="matchSel" style="max-width:300px" onchange="selectMatch(this.value)"></select>
+  <div class="unit-toggle class-toggle" id="classToggle">
+    <button data-c="IPRF" class="on" onclick="selectClass('IPRF')">IPRF</button>
+    <button data-c="Evolution" onclick="selectClass('Evolution')">Evolution</button>
+  </div>
   <div style="display:flex;gap:8px;margin-left:auto">
     <button onclick="saveData()" title="Download all your readings as a file">↓ Save</button>
     <button onclick="document.getElementById('loadFile').click()" title="Restore readings from a saved file">↑ Load</button>
@@ -150,56 +159,81 @@
 <div class="card" id="offsetArea"><div class="empty">Log readings on two or more targets to see offsets.</div></div>
 
 <script>
-/* ---- Matchbook data: IPRF targets, width in MRAD ---- */
+/* ---- Matchbook data: per-class target sets, width in MRAD ---- */
+/* Each stage has iprf[] and evo[] target lists. Some Heja stages have no dedicated E
+   gongs — Evolution shoots the same T gongs there, so evo mirrors iprf. */
 const MATCHES = [
   {
     id:"heja", name:"NAPRA Heja", date:"11 Jul 2026",
     stages:[
       {id:1,label:"S1",name:"Rooftop",pos:"Rooftop",
-       tgts:[{n:"T1",d:302,mil:0.41},{n:"T2",d:454,mil:0.44},{n:"T3",d:551,mil:0.41},{n:"T4",d:652,mil:0.42}]},
+       iprf:[{n:"T1",d:302,mil:0.41},{n:"T2",d:454,mil:0.44},{n:"T3",d:551,mil:0.41},{n:"T4",d:652,mil:0.42}],
+       evo:[{n:"E1",d:302,mil:0.66},{n:"E2",d:454,mil:0.61},{n:"E3",d:551,mil:0.64},{n:"E4",d:652,mil:0.54}]},
       {id:2,label:"S2",name:"Wide Angles",pos:"Cactus (3 pos) + Drum",
-       tgts:[{n:"T1",d:449,mil:0.39},{n:"T2",d:450,mil:0.39},{n:"T3",d:451,mil:0.39}]},
+       iprf:[{n:"T1",d:449,mil:0.39},{n:"T2",d:450,mil:0.39},{n:"T3",d:451,mil:0.39}],
+       evo:[{n:"E1",d:449,mil:0.56},{n:"E2",d:450,mil:0.61}]},
       {id:3,label:"S3",name:"The Hunt",pos:"Top of concrete block",
-       tgts:[{n:"T1",d:300,mil:0.33},{n:"T2",d:420,mil:0.48},{n:"T3",d:520,mil:0.58},{n:"T4",d:649,mil:0.52}]},
+       iprf:[{n:"T1",d:300,mil:0.33},{n:"T2",d:420,mil:0.48},{n:"T3",d:520,mil:0.58},{n:"T4",d:649,mil:0.52}],
+       evo:[{n:"T1",d:300,mil:0.33},{n:"T2",d:420,mil:0.48},{n:"T3",d:520,mil:0.58},{n:"T4",d:649,mil:0.52}]},
       {id:4,label:"S4",name:"Marais Trading Skills",pos:"4 barricade + window · timed tiebreaker",
-       tgts:[{n:"T1",d:406,mil:0.49},{n:"T2",d:409,mil:0.49}]},
+       iprf:[{n:"T1",d:406,mil:0.49},{n:"T2",d:409,mil:0.49}],
+       evo:[{n:"T1",d:406,mil:0.49},{n:"T2",d:409,mil:0.49}]},
       {id:5,label:"S5",name:"Windage & Elevation check",pos:"Prone on bed · bipod",
-       tgts:[{n:"T1-1",d:375,mil:0.80},{n:"T1-2",d:375,mil:0.24},{n:"T1-3",d:375,mil:0.40},
+       iprf:[{n:"T1-1",d:375,mil:0.80},{n:"T1-2",d:375,mil:0.24},{n:"T1-3",d:375,mil:0.40},
+             {n:"T2-1",d:552,mil:0.72},{n:"T2-2",d:552,mil:0.30},{n:"T2-3",d:552,mil:0.41},
+             {n:"T3-1",d:606,mil:0.66},{n:"T3-2",d:606,mil:0.31}],
+       evo:[{n:"T1-1",d:375,mil:0.80},{n:"T1-2",d:375,mil:0.24},{n:"T1-3",d:375,mil:0.40},
              {n:"T2-1",d:552,mil:0.72},{n:"T2-2",d:552,mil:0.30},{n:"T2-3",d:552,mil:0.41},
              {n:"T3-1",d:606,mil:0.66},{n:"T3-2",d:606,mil:0.31}]},
       {id:6,label:"S6",name:"BERGER Left-Right Troopline",pos:"1 prone · bipod",
-       tgts:[{n:"T1",d:438,mil:0.40},{n:"T2",d:505,mil:0.40},{n:"T3",d:546,mil:0.41},{n:"T4",d:606,mil:0.41},{n:"T5",d:668,mil:0.45}]},
+       iprf:[{n:"T1",d:438,mil:0.40},{n:"T2",d:505,mil:0.40},{n:"T3",d:546,mil:0.41},{n:"T4",d:606,mil:0.41},{n:"T5",d:668,mil:0.45}],
+       evo:[{n:"E1",d:438,mil:0.51},{n:"E2",d:505,mil:0.50},{n:"E3",d:546,mil:0.50},{n:"E4",d:606,mil:0.50}]},
       {id:7,label:"S7",name:"Bakkie",pos:"4 positions",
-       tgts:[{n:"T1",d:434,mil:0.46},{n:"T2",d:436,mil:0.40},{n:"T3",d:537,mil:0.47},{n:"T4",d:540,mil:0.42}]},
+       iprf:[{n:"T1",d:434,mil:0.46},{n:"T2",d:436,mil:0.40},{n:"T3",d:537,mil:0.47},{n:"T4",d:540,mil:0.42}],
+       evo:[{n:"E1",d:434,mil:0.58},{n:"E2",d:436,mil:0.57},{n:"E3",d:537,mil:0.56},{n:"E4",d:540,mil:0.56}]},
       {id:8,label:"S8",name:"Windows",pos:"8 windows",
-       tgts:[{n:"T1-1",d:396,mil:0.44},{n:"T1-2",d:396,mil:0.38}]},
+       iprf:[{n:"T1-1",d:396,mil:0.44},{n:"T1-2",d:396,mil:0.38}],
+       evo:[{n:"E1",d:396,mil:0.57}]},
     ]
   },
   {
     id:"outjo", name:"Outjo Shoot", date:"6 Jun 2025",
     stages:[
       {id:1,label:"S1",name:"Rails and Drum",pos:"2 rails + drum · 3 positions",
-       tgts:[{n:"T1.1",d:359,mil:0.49},{n:"T1.2",d:359,mil:0.35},{n:"T2.1",d:447,mil:0.45},{n:"T2.2",d:447,mil:0.34}]},
+       iprf:[{n:"T1.1",d:359,mil:0.49},{n:"T1.2",d:359,mil:0.35},{n:"T2.1",d:447,mil:0.45},{n:"T2.2",d:447,mil:0.34}],
+       evo:[{n:"E1",d:359,mil:0.56},{n:"E2",d:447,mil:0.56}]},
       {id:2,label:"S2",name:"Troopline",pos:"1 position · near to far",
-       tgts:[{n:"T1",d:400,mil:0.38},{n:"T2",d:485,mil:0.41},{n:"T3",d:549,mil:0.46},{n:"T4",d:694,mil:0.43},{n:"T5",d:844,mil:0.47}]},
+       iprf:[{n:"T1",d:400,mil:0.38},{n:"T2",d:485,mil:0.41},{n:"T3",d:549,mil:0.46},{n:"T4",d:694,mil:0.43},{n:"T5",d:844,mil:0.47}],
+       evo:[{n:"E1",d:400,mil:0.50},{n:"E2",d:485,mil:0.52},{n:"E3",d:549,mil:0.55},{n:"E4",d:694,mil:0.58}]},
       {id:3,label:"S3",name:"Stompe",pos:"5 positions · 2 racks",
-       tgts:[{n:"T1",d:573,mil:0.44},{n:"T2",d:477,mil:0.42}]},
+       iprf:[{n:"T1",d:573,mil:0.44},{n:"T2",d:477,mil:0.42}],
+       evo:[{n:"E1",d:573,mil:0.52},{n:"E2",d:477,mil:0.52}]},
       {id:4,label:"S4",name:"Kitchen Windows",pos:"8 positions · 5 used",
-       tgts:[{n:"T1",d:489,mil:0.41},{n:"T2",d:444,mil:0.45}]},
+       iprf:[{n:"T1",d:489,mil:0.41},{n:"T2",d:444,mil:0.45}],
+       evo:[{n:"E1",d:489,mil:0.51},{n:"E2",d:444,mil:0.56}]},
       {id:5,label:"S5",name:"Pole Dance",pos:"3 positions · 3 racks",
-       tgts:[{n:"T1",d:328,mil:0.38},{n:"T2",d:477,mil:0.42},{n:"T3",d:470,mil:0.48}]},
+       iprf:[{n:"T1",d:328,mil:0.38},{n:"T2",d:477,mil:0.42},{n:"T3",d:470,mil:0.48}],
+       evo:[{n:"E1",d:328,mil:0.61},{n:"E2",d:477,mil:0.52},{n:"E3",d:470,mil:0.64}]},
       {id:6,label:"S6",name:"Flat Wheel",pos:"3 positions · 2 racks",
-       tgts:[{n:"T1.1",d:506,mil:0.44},{n:"T1.2",d:506,mil:0.40},{n:"T1.3",d:506,mil:0.35},{n:"T2",d:518,mil:0.39}]},
+       iprf:[{n:"T1.1",d:506,mil:0.44},{n:"T1.2",d:506,mil:0.40},{n:"T1.3",d:506,mil:0.35},{n:"T2",d:518,mil:0.39}],
+       evo:[{n:"E1",d:506,mil:0.44}]},
       {id:7,label:"S7",name:"Ou Tol",pos:"3 positions · 2 repeated",
-       tgts:[{n:"T1",d:600,mil:0.42},{n:"T2",d:650,mil:0.42}]},
+       iprf:[{n:"T1",d:600,mil:0.42},{n:"T2",d:650,mil:0.42}],
+       evo:[{n:"E1",d:600,mil:0.58},{n:"E2",d:650,mil:0.62}]},
       {id:8,label:"S8",name:"Barricade",pos:"PRS barricade · timed tiebreaker",
-       tgts:[{n:"T1",d:563,mil:0.44},{n:"T2",d:577,mil:0.43}]},
+       iprf:[{n:"T1",d:563,mil:0.44},{n:"T2",d:577,mil:0.43}],
+       evo:[{n:"E1",d:563,mil:0.53},{n:"E2",d:577,mil:0.61}]},
     ]
   },
 ];
 
+/* Which class is loaded. Targets for a stage come from stage[classKey]. */
+const CLASS_KEY={IPRF:'iprf',Evolution:'evo'};
+
 /* State keyed by match. store[matchId] = { sets:{stageId:[...]}, draft:{}, ref:{}, hi:{} } */
-const S={ activeMatch:"heja", activeStage:1, store:{}, seq:0 };
+const S={ activeMatch:"heja", activeStage:1, activeClass:"IPRF", store:{}, seq:0 };
+/* targets for a stage under the current class */
+function tgtsOf(s){return s[CLASS_KEY[S.activeClass]]||[];}
 function initStore(){
   MATCHES.forEach(m=>{
     if(S.store[m.id])return;
@@ -220,7 +254,7 @@ function ST(){return S.store[S.activeMatch];}          // current match's store
 function stages(){return curMatch().stages;}
 function stage(id){return stages().find(s=>s.id===id);}
 function curStage(){return stage(S.activeStage);}
-function tgtObj(sid,n){return stage(sid).tgts.find(t=>t.n===n);}
+function tgtObj(sid,n){return tgtsOf(stage(sid)).find(t=>t.n===n);}
 function setsOf(sid){return ST().sets[sid]||[];}
 function draftOf(sid){return ST().draft[sid];}
 function hiOf(sid){return ST().hi[sid];}
@@ -280,7 +314,11 @@ function renderMatchSel(){
     const n=countReadings(m.id);
     return `<option value="${m.id}" ${m.id===S.activeMatch?'selected':''}>${esc(m.name)} · ${esc(m.date)}${n?` (${n} sets)`:''}</option>`;
   }).join('');
-  document.getElementById('matchTitle').innerHTML=`${esc(curMatch().name)} <span class="tag">IPRF · ${esc(curMatch().date)}</span>`;
+  document.getElementById('matchTitle').innerHTML=`${esc(curMatch().name)} <span class="tag">${esc(S.activeClass)} · ${esc(curMatch().date)}</span>`;
+  // sync class toggle buttons
+  document.querySelectorAll('#classToggle button').forEach(btn=>{
+    btn.classList.toggle('on', btn.dataset.c===S.activeClass);
+  });
 }
 function countReadings(mid){
   const st=S.store[mid]; if(!st)return 0;
@@ -291,8 +329,17 @@ function selectMatch(mid){
   S.activeStage=ST().activeStage||stages()[0].id;
   renderAll();
 }
+function selectClass(cls){
+  if(S.activeClass===cls)return;
+  S.activeClass=cls;
+  // clear the in-progress draft on the current stage so half-typed holds for the
+  // other class don't linger (submitted readings are kept — names don't collide)
+  const sid=S.activeStage;
+  if(ST().draft[sid])ST().draft[sid]={holds:{},tenths:{},dirByTgt:{}};
+  renderAll();
+}
 function saveData(){
-  const payload={app:"napra-wind",version:2,seq:S.seq,activeMatch:S.activeMatch,store:S.store};
+  const payload={app:"napra-wind",version:3,seq:S.seq,activeMatch:S.activeMatch,activeClass:S.activeClass,store:S.store};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -313,6 +360,7 @@ function loadData(ev){
       });
       S.seq=Math.max(S.seq,p.seq||0);
       if(p.activeMatch&&MATCHES.find(m=>m.id===p.activeMatch))S.activeMatch=p.activeMatch;
+      if(p.activeClass&&CLASS_KEY[p.activeClass])S.activeClass=p.activeClass;
       S.activeStage=ST().activeStage||stages()[0].id;
       renderAll();
     }catch(e){ alert("Couldn't load that file — "+e.message); }
@@ -326,7 +374,9 @@ function goStage(id){S.activeStage=id;ST().activeStage=id;renderAll();}
 
 function renderStageNav(){
   document.getElementById('stageNav').innerHTML=stages().map(s=>{
-    const has=setsOf(s.id).length?'has':'';
+    // dot shows only if this stage has readings for a target in the CURRENT class
+    const names=tgtsOf(s).map(t=>t.n);
+    const has=setsOf(s.id).some(set=>names.some(n=>set.holds[n]!=null))?'has':'';
     return `<div class="stage-btn ${s.id===S.activeStage?'on':''} ${has}" onclick="goStage(${s.id})">
       <span class="n">${s.label}</span>${esc(s.name)}</div>`;
   }).join('');
@@ -340,7 +390,7 @@ function renderEntry(){
   const s=curStage(), d=draftOf(s.id);
   const nextSet=setsOf(s.id).length+1;
   const sdir=stageDirOf(s.id);
-  const rows=s.tgts.map(t=>{
+  const rows=tgtsOf(s).map(t=>{
     const ht=d.tenths&&d.tenths[t.n]!=null?d.tenths[t.n]:'';
     const eff=effDir(s.id,t.n);
     const over=isOverridden(s.id,t.n);
@@ -416,18 +466,30 @@ function submitSet(){
 }
 function clearDraft(){ST().draft[curStage().id]={holds:{},tenths:{},dirByTgt:{}};renderEntry();}
 function removeSet(sid,id){ST().sets[sid]=setsOf(sid).filter(x=>x.id!==id);if(hiOf(sid)!=null)ST().hi[sid]=null;renderAll();}
-function clearStage(){ST().sets[S.activeStage]=[];ST().hi[S.activeStage]=null;renderAll();}
+function clearStage(){
+  const s=curStage(), names=tgtsOf(s).map(t=>t.n);
+  // remove only current-class holds from each set; drop sets left empty
+  ST().sets[s.id]=setsOf(s.id).map(set=>{
+    names.forEach(n=>{delete set.holds[n]; if(set.notes)delete set.notes[n];});
+    return set;
+  }).filter(set=>Object.keys(set.holds).length>0);
+  ST().hi[s.id]=null;
+  renderAll();
+}
 function toggleHi(sid,idx){ST().hi[sid]=(hiOf(sid)===idx)?null:idx;renderReadings();renderBracket();}
 
 function renderReadings(){
-  const s=curStage(), sets=setsOf(s.id);
-  document.getElementById('rCount').textContent=sets.length?`(${sets.length} set${sets.length>1?'s':''} on this stage)`:'';
+  const s=curStage(), allSets=setsOf(s.id);
+  const cols=tgtsOf(s);
+  const names=cols.map(t=>t.n);
+  // keep original index (used by highlight + holdsWithSet), but only show sets that
+  // have at least one hold for a target in the current class
+  const rowsIdx=allSets.map((set,idx)=>({set,idx})).filter(o=>names.some(n=>o.set.holds[n]!=null));
+  document.getElementById('rCount').textContent=rowsIdx.length?`(${rowsIdx.length} set${rowsIdx.length>1?'s':''} on this stage)`:'';
   const el=document.getElementById('readingsTable');
-  if(!sets.length){el.innerHTML='<div class="empty">No readings submitted on this stage.</div>';return;}
-  // matrix: rows = reading sets, cols = targets
-  const cols=s.tgts;
+  if(!rowsIdx.length){el.innerHTML='<div class="empty">No readings submitted on this stage.</div>';return;}
   const head=`<tr><th>Set</th><th>Time</th>${cols.map(t=>`<th>${esc(t.n)}</th>`).join('')}<th></th></tr>`;
-  const body=sets.map((set,idx)=>{
+  const body=rowsIdx.map(({set,idx},displayNo)=>{
     const tm=new Date(set.t).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
     const on=hiOf(s.id)===idx;
     const cells=cols.map(t=>{
@@ -441,7 +503,7 @@ function renderReadings(){
       <td>#${idx+1}</td><td class="muted">${tm}</td>${cells}
       <td><span class="del" onclick="event.stopPropagation();removeSet(${s.id},${set.id})">✕</span></td></tr>`;
   }).join('');
-  const note=sets.length>1?`<p class="hint" style="padding:6px 12px 2px">Tap a set to highlight its holds on the bracket chart below.</p>`:'';
+  const note=rowsIdx.length>1?`<p class="hint" style="padding:6px 12px 2px">Tap a set to highlight its holds on the bracket chart below.</p>`:'';
   el.innerHTML=`${note}<div style="overflow-x:auto"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
 }
 
@@ -489,7 +551,7 @@ function strategy(b,t){
 
 function renderBracket(){
   const s=curStage();
-  const active=s.tgts.filter(t=>holdsFor(s.id,t.n).length);
+  const active=tgtsOf(s).filter(t=>holdsFor(s.id,t.n).length);
   const el=document.getElementById('bracketArea');
   if(!active.length){el.innerHTML='<div class="empty">No readings on this stage yet.</div>';return;}
 
@@ -631,7 +693,7 @@ function renderBracket(){
 
 function renderOffsets(){
   const s=curStage();
-  const active=s.tgts.filter(t=>holdsFor(s.id,t.n).length);
+  const active=tgtsOf(s).filter(t=>holdsFor(s.id,t.n).length);
   const el=document.getElementById('offsetArea');
   if(active.length<2){el.innerHTML='<div class="empty">Log readings on two or more targets to see offsets.</div>';return;}
   const refKey=refOf(s.id)&&active.find(t=>t.n===refOf(s.id))?refOf(s.id):active[0].n;
