@@ -158,6 +158,9 @@
 <div class="eyebrow">Target-to-target offsets</div>
 <div class="card" id="offsetArea"><div class="empty">Log readings on two or more targets to see offsets.</div></div>
 
+<div class="eyebrow">Stage summary</div>
+<div class="card" id="summaryArea" style="padding:8px 0"><div class="empty">Log readings to build the summary.</div></div>
+
 <script>
 /* ---- Matchbook data: per-class target sets, width in MRAD ---- */
 /* Each stage has iprf[] and evo[] target lists. Some Heja stages have no dedicated E
@@ -369,7 +372,7 @@ function loadData(ev){
   rd.readAsText(file);
 }
 
-function renderAll(){renderMatchSel();renderStageNav();renderStageHead();renderEntry();renderReadings();renderBracket();renderOffsets();}
+function renderAll(){renderMatchSel();renderStageNav();renderStageHead();renderEntry();renderReadings();renderBracket();renderOffsets();renderSummary();}
 function goStage(id){S.activeStage=id;ST().activeStage=id;renderAll();}
 
 function renderStageNav(){
@@ -716,6 +719,48 @@ function renderOffsets(){
   }).join('');
   el.innerHTML=`${sel}<p class="hint" style="margin-bottom:10px">Confirm your hit on <b>${esc(refKey)}</b> (hold <code>${fmtDial(rRec)}</code>), then adjust by the offset to jump to each target's recommended hold.</p>
     <table><thead><tr><th>Target</th><th>Offset</th><th>Adjust</th><th>Its hold</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function renderSummary(){
+  const s=curStage();
+  const active=tgtsOf(s).filter(t=>holdsFor(s.id,t.n).length);
+  const el=document.getElementById('summaryArea');
+  if(!active.length){el.innerHTML='<div class="empty">Log readings to build the summary.</div>';return;}
+
+  // recommended hold per target (safe-band midpoint if a band exists, else bracket centre)
+  const recOf=n=>{const b=bracket(s.id,n),bd=safeBand(b,tgtObj(s.id,n));return bd.exists?bd.mid:b.center;};
+  // reference = first active target on the stage
+  const ref=active[0].n, rRec=recOf(ref);
+
+  const rows=active.map((t,i)=>{
+    const rec=recOf(t.n);
+    // offset relative to target 1, as a HOLD delta (right=+), matching the offsets table
+    const d=rec-rRec;          // target-position delta
+    const offsetCell = i===0
+      ? '<span class="faint">— reference</span>'
+      : (Math.abs(d)<0.05 ? '<span class="muted">same</span>'
+         : `${fmt(Math.abs(d))} ${d>0?'left':'right'}`);
+    // min / max holds among this target's readings.
+    // signed values are TARGET positions; convert each end to its HOLD via fmtDial.
+    // "min hold" = smallest hold magnitude, "max hold" = largest, keeping side.
+    const holds=holdsFor(s.id,t.n);                 // signed target positions
+    const byMag=[...holds].sort((a,b)=>Math.abs(a)-Math.abs(b));
+    const minHold=byMag[0], maxHold=byMag[byMag.length-1];
+    return `<tr>
+      <td>${esc(t.n)}</td>
+      <td>${offsetCell}</td>
+      <td class="muted">${fmtDial(minHold)}</td>
+      <td style="color:var(--brass)">${fmtDial(rec)}</td>
+      <td class="muted">${fmtDial(maxHold)}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML=`<div style="overflow-x:auto"><table>
+    <thead><tr>
+      <th>Target</th><th>Offset vs ${esc(ref)}</th><th>Min hold</th><th>Rec. hold</th><th>Max hold</th>
+    </tr></thead>
+    <tbody>${rows}</tbody></table></div>
+    <p class="hint" style="padding:6px 12px 0">Min / max are the lightest and heaviest holds among your reads for that target; recommended is the hold that best covers all reads. Offset is the dial move from <b>${esc(ref)}</b>'s recommended hold.</p>`;
 }
 
 renderAll();
