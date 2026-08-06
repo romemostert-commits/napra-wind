@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAPRA Wind Dope Cards — Print</title>
+<style>
+  @page { size: A4 portrait; margin: 8mm; }
+  :root{
+    --ink:#000; --mid:#444; --faint:#888; --hair:#000;
+    --mono:'DM Mono','SF Mono',ui-monospace,'Cascadia Mono',Menlo,Consolas,monospace;
+    --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#fff;color:var(--ink);font-family:var(--sans);-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{padding:8mm}
+
+  /* ---- screen-only toolbar ---- */
+  .toolbar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px;
+    padding:12px 14px;border:1px solid #ccc;border-radius:8px;background:#fafafa}
+  .toolbar h1{font-size:15px;font-weight:600}
+  .toolbar p{font-size:12.5px;color:#555;flex:1;min-width:220px}
+  .toolbar button{font-family:var(--sans);font-weight:600;font-size:13px;border:1px solid #111;
+    background:#111;color:#fff;border-radius:6px;padding:9px 18px;cursor:pointer}
+  .toolbar button:hover{background:#000}
+  @media print { .toolbar{display:none} body{padding:0} }
+
+  .sheet-head{display:flex;justify-content:space-between;align-items:baseline;
+    border-bottom:2px solid #000;padding-bottom:3px;margin-bottom:4mm}
+  .sheet-head .t{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+  .sheet-head .s{font-family:var(--mono);font-size:10px;color:var(--mid);letter-spacing:.08em}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:4.5mm 6mm;}
+
+  .card{border:1.5px solid #000;border-radius:2mm;padding:3mm 3mm 2mm;
+    break-inside:avoid;page-break-inside:avoid;position:relative;
+    background:
+      repeating-linear-gradient(0deg,transparent,transparent 6mm,transparent 6mm);}
+  /* dashed cut guide sits just outside the border via outline offset */
+  .card{outline:1px dashed #bbb;outline-offset:2.4mm}
+
+  .card-top{display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:1.2px solid #000;padding-bottom:1.2mm;margin-bottom:1.2mm}
+  .card-title{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:500}
+  .card-meta{font-family:var(--mono);font-size:9px;color:var(--mid)}
+  /* fill-in blanks for match / stage */
+  .blank{display:inline-block;border-bottom:1px solid #000;min-width:22mm;height:3.4mm;vertical-align:baseline}
+  .blank.sm{min-width:12mm}
+
+  /* wind direction tick boxes */
+  .wind-row{display:flex;align-items:center;gap:2mm;font-family:var(--mono);font-size:9px;
+    color:var(--mid);margin:1mm 0 1.5mm}
+  .wind-row .box{width:2.8mm;height:2.8mm;border:1px solid #000;display:inline-block}
+  .wind-row .lab{letter-spacing:.06em}
+
+  table{width:100%;border-collapse:collapse;font-family:var(--mono);table-layout:fixed}
+  th{font-size:8px;letter-spacing:.04em;text-transform:uppercase;color:var(--mid);
+    font-weight:500;text-align:center;padding:0 0 0.8mm}
+  th.tgt{text-align:left}
+  td{border:1px solid #000;height:5.6mm;text-align:center;font-size:11px}
+  /* first column = target label, pre-numbered but editable feel */
+  td.tgt{text-align:left;padding-left:1.6mm;font-size:10px;color:#000;width:16%;
+    background:#f2f2f2}
+  col.c-off{width:22%} col.c-min{width:20%} col.c-rec{width:22%} col.c-max{width:20%}
+  /* recommended column emphasised so it's the one the eye finds fast */
+  td.rec{background:#ececec}
+  th.rec{color:#000;font-weight:700}
+
+  .card-foot{display:flex;justify-content:space-between;font-family:var(--mono);
+    font-size:8px;color:var(--faint);margin-top:1.5mm}
+
+  .legend{font-family:var(--mono);font-size:8.5px;color:var(--mid);margin-top:4mm;
+    border-top:1px solid #ccc;padding-top:2mm;line-height:1.6}
+  .legend b{color:#000}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <h1>Wind Dope Cards</h1>
+  <p>Six blank cards. Print, then fill in each one at the line from the app's Stage Summary — write the Offset, Min, Recommended and Max hold for each target. Cut along the dashed guides.</p>
+  <button onclick="window.print()">Print / Save PDF</button>
+</div>
+
+<div class="sheet-head">
+  <span class="t">NAPRA · Wind Dope Cards</span>
+  <span class="s">MILS · hold = dial into wind · L / R = wind from</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="legend">
+  <b>How to use:</b> One card per stage. Fill <b>Match</b> and <b>Stage</b>, tick which way the wind is from, then copy each target's <b>Offset</b> (dial from T1), <b>Min</b> / <b>Max</b> hold (your lightest &amp; heaviest reads) and <b>Recommended</b> hold from the app. Holds in mils, e.g. <b>0.5 L</b>.
+</div>
+
+<script>
+  const CARDS = 8;      // cards on the sheet (2 x 4)
+  const ROWS  = 5;      // target rows per card
+  const grid = document.getElementById('grid');
+  let html = '';
+  for(let c=0;c<CARDS;c++){
+    let rows='';
+    for(let r=1;r<=ROWS;r++){
+      rows += `<tr>
+        <td class="tgt"></td>
+        <td></td>
+        <td></td>
+        <td class="rec"></td>
+        <td></td>
+      </tr>`;
+    }
+    html += `
+    <div class="card">
+      <div class="card-top">
+        <span class="card-title">Match <span class="blank"></span></span>
+        <span class="card-meta">Stage <span class="blank sm"></span></span>
+      </div>
+      <div class="wind-row">
+        <span class="lab">WIND FROM</span>
+        <span class="box"></span><span class="lab">L</span>
+        <span class="box"></span><span class="lab">R</span>
+        <span class="lab" style="margin-left:auto">SPEED <span class="blank sm"></span></span>
+      </div>
+      <table>
+        <colgroup>
+          <col style="width:16%"><col class="c-off"><col class="c-min"><col class="c-rec"><col class="c-max">
+        </colgroup>
+        <thead><tr>
+          <th class="tgt">Tgt</th><th>Offset</th><th>Min</th><th class="rec">Rec.</th><th>Max</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="card-foot"><span>offset = dial from T1</span><span>#${c+1}</span></div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+</script>
+</body>
+</html>
