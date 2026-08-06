@@ -83,6 +83,20 @@
   .callout.warn{border-left-color:var(--warn)}
   .callout.bad{border-left-color:var(--bad)}
   .co-head{display:flex;align-items:center;gap:10px;margin-bottom:3px}
+  .view-toggle{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .vt-label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-faint)}
+  .vt-seg{display:inline-flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+  .vt-seg button{border:none;border-radius:0;background:var(--panel-2);color:var(--ink-dim);
+    font-family:var(--mono);font-size:12px;padding:6px 14px;cursor:pointer;transition:all .12s}
+  .vt-seg button:hover{color:var(--ink)}
+  .vt-seg button.on{background:var(--brass);color:#241d07;font-weight:600}
+  .vt-hint{font-size:11px;color:var(--ink-faint)}
+  .lock-ctl{margin-left:auto;display:inline-flex;align-items:center;gap:6px}
+  .lock-ctl button{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);
+    font-family:var(--mono);font-size:15px;line-height:1;width:26px;height:26px;border-radius:5px;
+    cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+  .lock-ctl button:hover{border-color:var(--brass);color:var(--brass)}
+  .lock-val{font-family:var(--mono);font-size:12px;color:var(--brass);min-width:42px;text-align:center}
   .co-tgt{font-family:var(--mono);font-size:13px;color:var(--ink)}
   .co-pill{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:2px 7px;border-radius:3px}
   .co-pill.ok{background:rgba(111,174,127,.16);color:var(--ok)}
@@ -131,13 +145,14 @@
     <button data-c="Evolution" onclick="selectClass('Evolution')">Evolution</button>
   </div>
   <div style="display:flex;gap:8px;margin-left:auto">
+    <a href="dope-cards.html" target="_blank" style="text-decoration:none"><button title="Printable blank dope cards to fill in by hand">⎙ Dope cards</button></a>
     <button onclick="saveData()" title="Download all your readings as a file">↓ Save</button>
     <button onclick="document.getElementById('loadFile').click()" title="Restore readings from a saved file">↑ Load</button>
     <input type="file" id="loadFile" accept="application/json" style="display:none" onchange="loadData(event)">
   </div>
 </div>
 
-<div class="eyebrow">Stage</div>
+<div class="eyebrow" id="stageEyebrow">Stage</div>
 <div class="stage-nav" id="stageNav"></div>
 
 <div class="eyebrow">Log a wind reading</div>
@@ -228,6 +243,40 @@ const MATCHES = [
        evo:[{n:"E1",d:563,mil:0.53},{n:"E2",d:577,mil:0.61}]},
     ]
   },
+  {
+    id:"okahandja-near", name:"Okahandja — Near", date:"",
+    stages:[
+      {id:1,label:"", name:"Okahandja Near", pos:"red gongs · IPRF Gong 1 · Evo Gong 2",
+       // IPRF = Gong 1 (smallest); Evolution = Gong 2 (2nd smallest). MOA→MIL.
+       iprf:[
+         {n:"1",d:304,mil:0.33},{n:"2",d:298,mil:0.67},{n:"3",d:342,mil:0.44},
+         {n:"4",d:399,mil:0.50},{n:"5",d:450,mil:0.33},{n:"6",d:478,mil:0.42},
+         {n:"7",d:497,mil:0.20},{n:"8",d:547,mil:0.37},{n:"9",d:529,mil:0.38},
+         {n:"10",d:600,mil:0.33}],
+       evo:[
+         {n:"1",d:304,mil:0.49},{n:"2",d:298,mil:1.34},{n:"3",d:342,mil:0.58},
+         {n:"4",d:399,mil:0.83},{n:"5",d:450,mil:0.45},{n:"6",d:478,mil:0.52},
+         {n:"7",d:497,mil:0.30},{n:"8",d:547,mil:0.46},{n:"9",d:529,mil:0.47},
+         {n:"10",d:600,mil:0.50}]},
+    ]
+  },
+  {
+    id:"okahandja-far", name:"Okahandja — Far", date:"",
+    stages:[
+      {id:1,label:"", name:"Okahandja Far", pos:"black gongs · IPRF Gong 1 · Evo Gong 2",
+       iprf:[
+         {n:"1",d:1453,mil:0.62},{n:"2",d:1410,mil:0.50},{n:"3",d:1393,mil:0.57},
+         {n:"4",d:1375,mil:0.51},{n:"5",d:1338,mil:0.30},{n:"6",d:1264,mil:0.35},
+         {n:"7",d:1216,mil:0.32},{n:"8",d:1193,mil:0.29},{n:"9",d:777,mil:0.39},
+         {n:"10",d:720,mil:0.35}],
+       // stands 1–4 have only one gong → Evolution keeps Gong 1 there
+       evo:[
+         {n:"1",d:1453,mil:0.62},{n:"2",d:1410,mil:0.50},{n:"3",d:1393,mil:0.57},
+         {n:"4",d:1375,mil:0.51},{n:"5",d:1338,mil:0.40},{n:"6",d:1264,mil:0.47},
+         {n:"7",d:1216,mil:0.45},{n:"8",d:1193,mil:0.42},{n:"9",d:777,mil:0.57},
+         {n:"10",d:720,mil:0.50}]},
+    ]
+  },
 ];
 
 /* Which class is loaded. Targets for a stage come from stage[classKey]. */
@@ -240,8 +289,8 @@ function tgtsOf(s){return s[CLASS_KEY[S.activeClass]]||[];}
 function initStore(){
   MATCHES.forEach(m=>{
     if(S.store[m.id])return;
-    const st={sets:{},draft:{},ref:{},hi:{},stageDir:{},activeStage:1};
-    m.stages.forEach(s=>{st.sets[s.id]=[];st.draft[s.id]={holds:{},tenths:{},dirByTgt:{}};st.stageDir[s.id]='R';});
+    const st={sets:{},draft:{},ref:{},hi:{},stageDir:{},locks:{},viewMode:{},activeStage:1};
+    m.stages.forEach(s=>{st.sets[s.id]=[];st.draft[s.id]={holds:{},tenths:{},dirByTgt:{}};st.stageDir[s.id]='R';st.locks[s.id]={};st.viewMode[s.id]='float';});
     S.store[m.id]=st;
   });
 }
@@ -263,6 +312,28 @@ function draftOf(sid){return ST().draft[sid];}
 function hiOf(sid){return ST().hi[sid];}
 function refOf(sid){return ST().ref[sid];}
 function stageDirOf(sid){const sd=ST().stageDir;return (sd&&sd[sid])||'R';}
+/* view mode per stage: 'float' (window centres on cluster) or 'locked' (window pinned per target) */
+function viewModeOf(sid){const v=ST().viewMode;return (v&&v[sid])||'float';}
+function setViewMode(sid,mode){if(!ST().viewMode)ST().viewMode={};ST().viewMode[sid]=mode;renderBracket();}
+/* locked hold per target (a TARGET-position coordinate). If not explicitly set, fall back to
+   the Float recommended hold (safe-band midpoint / bracket centre), else 0. */
+function lockOf(sid,n){
+  const L=ST().locks&&ST().locks[sid];
+  if(L&&L[n]!=null)return L[n];
+  const reads=holdsFor(sid,n);
+  if(!reads.length)return 0;
+  const b=bracket(sid,n), bd=safeBand(b,tgtObj(sid,n));
+  return Math.round((bd.exists?bd.mid:b.center)*10)/10;
+}
+function setLock(sid,n,v){
+  if(!ST().locks)ST().locks={};
+  if(!ST().locks[sid])ST().locks[sid]={};
+  const snapped=Math.max(-3,Math.min(3,Math.round(v*10)/10));
+  if(ST().locks[sid][n]===snapped)return;   // no change → don't thrash re-render mid-drag
+  ST().locks[sid][n]=snapped;
+  renderBracket();
+}
+function nudgeLock(sid,n,delta){setLock(sid,n,lockOf(sid,n)+delta);}
 /* effective direction for a target in the current draft: explicit override, else stage default */
 function effDir(sid,n){
   const d=draftOf(sid);
@@ -311,14 +382,24 @@ function fmtDial(v){
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
 /* --- match selection & persistence --- */
+function matchUsesClasses(m){
+  // true if any stage has different iprf vs evo target lists
+  return m.stages.some(s=>JSON.stringify(s.iprf)!==JSON.stringify(s.evo));
+}
 function renderMatchSel(){
   const sel=document.getElementById('matchSel');
   sel.innerHTML=MATCHES.map(m=>{
     const n=countReadings(m.id);
-    return `<option value="${m.id}" ${m.id===S.activeMatch?'selected':''}>${esc(m.name)} · ${esc(m.date)}${n?` (${n} sets)`:''}</option>`;
+    const datePart = m.date ? ` · ${esc(m.date)}` : '';
+    return `<option value="${m.id}" ${m.id===S.activeMatch?'selected':''}>${esc(m.name)}${datePart}${n?` (${n} sets)`:''}</option>`;
   }).join('');
-  document.getElementById('matchTitle').innerHTML=`${esc(curMatch().name)} <span class="tag">${esc(S.activeClass)} · ${esc(curMatch().date)}</span>`;
-  // sync class toggle buttons
+  const usesClasses=matchUsesClasses(curMatch());
+  const date=curMatch().date;
+  // tag = class and/or date, joined only when both present
+  const tag = [usesClasses?esc(S.activeClass):'', date?esc(date):''].filter(Boolean).join(' · ');
+  document.getElementById('matchTitle').innerHTML=`${esc(curMatch().name)}${tag?` <span class="tag">${tag}</span>`:''}`;
+  // hide the IPRF/Evolution toggle for matches where both classes are identical (e.g. club gong lists)
+  document.getElementById('classToggle').style.display=usesClasses?'':'none';
   document.querySelectorAll('#classToggle button').forEach(btn=>{
     btn.classList.toggle('on', btn.dataset.c===S.activeClass);
   });
@@ -376,6 +457,11 @@ function renderAll(){renderMatchSel();renderStageNav();renderStageHead();renderE
 function goStage(id){S.activeStage=id;ST().activeStage=id;renderAll();}
 
 function renderStageNav(){
+  const single=stages().length<=1;
+  // single-stage matches (e.g. club gong lists) have no meaningful stage navigation — hide it
+  document.getElementById('stageEyebrow').style.display=single?'none':'';
+  document.getElementById('stageNav').style.display=single?'none':'';
+  if(single)return;
   document.getElementById('stageNav').innerHTML=stages().map(s=>{
     // dot shows only if this stage has readings for a target in the CURRENT class
     const names=tgtsOf(s).map(t=>t.n);
@@ -386,8 +472,14 @@ function renderStageNav(){
 }
 function renderStageHead(){
   const s=curStage();
-  document.getElementById('sTitle').textContent=`Stage ${s.id}: ${s.name}`;
-  document.getElementById('sPos').textContent='· '+s.pos;
+  if(stages().length<=1){
+    // no stage numbering for single-stage matches — just show the match/position note
+    document.getElementById('sTitle').textContent=s.name;
+    document.getElementById('sPos').textContent=s.pos?'· '+s.pos:'';
+  } else {
+    document.getElementById('sTitle').textContent=`Stage ${s.id}: ${s.name}`;
+    document.getElementById('sPos').textContent='· '+s.pos;
+  }
 }
 function renderEntry(){
   const s=curStage(), d=draftOf(s.id);
@@ -552,14 +644,38 @@ function strategy(b,t){
     text:`Reads span ${fmt(b.spread)} — ${fmt(gap)} more than the target's usable width (${fmt2(band.wEff)}). No single hold covers them all — favor <b>${dial}</b> and break on lulls, or hold the edge for the condition you see.`};
 }
 
+/* Locked assessment: target pinned at lockPos (target-position coord). A reading at position p
+   hits if |p - lockPos| <= wEff/2. Reports how many reads fall on the fixed plate. */
+function lockedStrategy(b,t,lockPos,sid){
+  const wEff=t.mil*PRACTICAL, half=wEff/2;
+  const lo=lockPos-half, hi=lockPos+half;           // fixed window edges (target-position space)
+  const allIn = b.min>=lo-1e-9 && b.max<=hi+1e-9;   // every read inside the fixed plate?
+  const holdDial=fmtDial(lockPos);
+  if(allIn){
+    const marginL=Math.abs((b.min)-lo), marginR=Math.abs(hi-(b.max));
+    const m=Math.min(marginL,marginR);
+    const mStr=m>=0.1?fmt(m):fmt2(m);
+    return {level:'ok',word:'ALL ON', lockPos, lo, hi, wEff,
+      text:`Every read lands on the plate at hold <b>${holdDial}</b> (worst read ${mStr} from the edge). Send it.`};
+  }
+  const reads=holdsFor(sid, t.n);
+  const off=reads.filter(p=>p<lo-1e-9||p>hi+1e-9);
+  const offCount=off.length, total=reads.length;
+  const worst=off.reduce((mx,p)=>{const d=Math.max(lo-p,p-hi);return d>mx?d:mx;},0);
+  return {level:'bad',word:'READS OFF', lockPos, lo, hi, wEff,
+    text:`${offCount} of ${total} reads fall off the plate at hold <b>${holdDial}</b> (worst by ${fmt(worst)}). Move the lock toward them, or bracket and break on lulls.`};
+}
+
 function renderBracket(){
   const s=curStage();
   const active=tgtsOf(s).filter(t=>holdsFor(s.id,t.n).length);
   const el=document.getElementById('bracketArea');
   if(!active.length){el.innerHTML='<div class="empty">No readings on this stage yet.</div>';return;}
 
+  const mode0=viewModeOf(s.id);
   let lo=Infinity,hi=-Infinity;
-  active.forEach(t=>{const b=bracket(s.id,t.n);lo=Math.min(lo,b.min-t.mil/2);hi=Math.max(hi,b.max+t.mil/2);});
+  active.forEach(t=>{const b=bracket(s.id,t.n);lo=Math.min(lo,b.min-t.mil/2);hi=Math.max(hi,b.max+t.mil/2);
+    if(mode0==='locked'){const lk=lockOf(s.id,t.n);lo=Math.min(lo,lk-t.mil/2);hi=Math.max(hi,lk+t.mil/2);}});
   // always include 0 (reticle centre) in view
   lo=Math.min(lo,0);hi=Math.max(hi,0);
   if(lo===hi){lo-=1;hi+=1;}
@@ -604,20 +720,78 @@ function renderBracket(){
   }
   guides+=`<line x1="${x0}" y1="${topAxis-24}" x2="${x0}" y2="${H-6}" stroke="#e0392f" stroke-width="1.2" opacity="0.55"/>`;
 
+  const mode=viewModeOf(s.id);
   let rows='', callouts='';
   active.forEach((t,i)=>{
     const b=bracket(s.id,t.n), y=topAxis+i*rowH+rowH/2-4;
     const x1=x(b.min),x2=x(b.max);
+
+    if(mode==='locked'){
+      /* ---- LOCKED: window pinned at the target's locked hold ---- */
+      const lockPos=lockOf(s.id,t.n);
+      const strat=lockedStrategy(b,t,lockPos,s.id);
+      const col=strat.level==='ok'?'var(--ok)':'var(--bad)';
+      const half=t.mil/2, sx1=x(lockPos-half),sx2=x(lockPos+half);
+      const xLock=x(lockPos);
+      const boxT=y-15, boxB=y+15, cap=6;
+      // fixed plate window (solid, emphatic — it does NOT move with reads)
+      const win=`
+        <rect x="${sx1}" y="${boxT}" width="${sx2-sx1}" height="${boxB-boxT}" rx="2" fill="${col}" opacity="0.10"/>
+        <line x1="${sx1}" y1="${boxT}" x2="${sx1}" y2="${boxB}" stroke="${col}" stroke-width="1.4"/>
+        <line x1="${sx2}" y1="${boxT}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.4"/>
+        <line x1="${sx1}" y1="${boxT}" x2="${sx1+cap}" y2="${boxT}" stroke="${col}" stroke-width="1.4"/>
+        <line x1="${sx1}" y1="${boxB}" x2="${sx1+cap}" y2="${boxB}" stroke="${col}" stroke-width="1.4"/>
+        <line x1="${sx2-cap}" y1="${boxT}" x2="${sx2}" y2="${boxT}" stroke="${col}" stroke-width="1.4"/>
+        <line x1="${sx2-cap}" y1="${boxB}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.4"/>`;
+      // reads as dots, colored by whether each lands on the fixed plate
+      const hset=hiOf(s.id);
+      const pts=holdsWithSet(s.id,t.n);
+      const sorted=[...pts].sort((a,b)=>a.val-b.val);
+      let dots='', labels='', lastLx=-999, tier=0;
+      sorted.forEach(p=>{
+        const px=x(p.val);
+        const on = p.val>=lockPos-half-1e-9 && p.val<=lockPos+half+1e-9;
+        const dim = hset!=null && hset!==p.setIdx;
+        const dc = dim?'var(--ink-faint)':(on?'var(--ok)':'var(--bad)');
+        const dotR=(hset===p.setIdx)?3.4:2.4;
+        dots+=`<circle cx="${px}" cy="${y}" r="${dotR}" fill="${dc}" data-set="${p.setIdx}"
+          style="cursor:pointer" onclick="toggleHi(${s.id},${p.setIdx})"/>`;
+        if(px-lastLx<24){tier=(tier+1)%2;}else{tier=0;}
+        lastLx=px;
+        labels+=`<text x="${px}" y="${y-9-tier*10}" fill="${dim?'var(--ink-faint)':(on?'var(--ok)':'var(--bad)')}"
+          font-size="8.5" font-family="var(--mono)" text-anchor="middle">${fmtDial(p.val)}</text>`;
+      });
+      // static lock marker (a vertical grip at the locked hold; set via − / + buttons)
+      const handle=`
+        <g>
+          <line x1="${xLock}" y1="${y-17}" x2="${xLock}" y2="${y+17}" stroke="var(--brass)" stroke-width="2"/>
+          <circle cx="${xLock}" cy="${y}" r="4" fill="var(--brass)" stroke="var(--panel)" stroke-width="1.3"/>
+          <polygon points="${xLock-6},${y-17} ${xLock+6},${y-17} ${xLock},${y-12}" fill="var(--brass)"/>
+        </g>`;
+      rows+=`
+        <text x="${L-12}" y="${y-2}" fill="var(--ink)" font-size="12" font-family="var(--mono)" text-anchor="end">${esc(t.n)}</text>
+        <text x="${L-12}" y="${y+11}" fill="var(--ink-faint)" font-size="9.5" font-family="var(--mono)" text-anchor="end">lock ${fmtDial(lockPos)}</text>
+        ${win}${labels}${dots}${handle}`;
+      const pill=strat.level==='ok'?'ok':'bad';
+      callouts+=`<div class="callout ${pill}">
+        <div class="co-head"><span class="co-tgt">${esc(t.n)}</span><span class="co-pill ${pill}">${strat.word}</span>
+          <span class="lock-ctl">
+            <button onclick="nudgeLock(${s.id},'${esc(t.n)}',-0.1)" title="hold more right">−</button>
+            <span class="lock-val">${fmtDial(lockPos)}</span>
+            <button onclick="nudgeLock(${s.id},'${esc(t.n)}',0.1)" title="hold more left">+</button>
+          </span>
+        </div>
+        <div class="co-body">${strat.text}</div></div>`;
+      return;
+    }
+
+    /* ---- FLOAT (default): window centres on the cluster ---- */
     const strat=strategy(b,t);
     const band=strat.band;
     const col=strat.level==='ok'?'var(--ok)':(strat.level==='warn'?'var(--warn)':'var(--bad)');
-    // recommended hold sits at the safe-band midpoint when a band exists, else the bracket centre
     const recV = band.exists ? band.mid : b.center;
     const xc=x(recV);
-    // full target-width window (faint reference), centred on the recommended hold
     const half=t.mil/2, sx1=x(recV-half),sx2=x(recV+half);
-
-    // target subtension window: reticle-style bracketed box (corner ticks, not full rect)
     const boxT=y-15, boxB=y+15, cap=6;
     const win=`
       <line x1="${sx1}" y1="${boxT}" x2="${sx1}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
@@ -626,8 +800,6 @@ function renderBracket(){
       <line x1="${sx1}" y1="${boxB}" x2="${sx1+cap}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
       <line x1="${sx2-cap}" y1="${boxT}" x2="${sx2}" y2="${boxT}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>
       <line x1="${sx2-cap}" y1="${boxB}" x2="${sx2}" y2="${boxB}" stroke="${col}" stroke-width="1.2" opacity="0.5"/>`;
-
-    // SAFE BAND: the intersection of all readings' acceptance windows (holds that hit under every read)
     let safe='';
     if(band.exists){
       const bx1=x(band.lo), bx2=x(band.hi);
@@ -636,11 +808,8 @@ function renderBracket(){
         <line x1="${bx1}" y1="${y-9}" x2="${bx1}" y2="${y+9}" stroke="${col}" stroke-width="1" opacity="0.6"/>
         <line x1="${bx2}" y1="${y-9}" x2="${bx2}" y2="${y+9}" stroke="${col}" stroke-width="1" opacity="0.6"/>`;
     }
-
-    // individual holds as floating reticle dots, tagged with their set for highlighting
     const hset=hiOf(s.id);
     const pts=holdsWithSet(s.id,t.n);
-    // sort by x so we can stagger overlapping labels
     const sorted=[...pts].sort((a,b)=>a.val-b.val);
     let dots='', labels='';
     let lastLx=-999, tier=0;
@@ -651,7 +820,6 @@ function renderBracket(){
       const dotR = (hset===p.setIdx)?3:2;
       dots+=`<circle cx="${px}" cy="${y}" r="${dotR}" fill="${dotCol}" data-set="${p.setIdx}"
         style="cursor:pointer" onclick="toggleHi(${s.id},${p.setIdx})"/>`;
-      // stagger label vertically if too close to previous label
       if(px-lastLx<24){tier=(tier+1)%2;}else{tier=0;}
       lastLx=px;
       const ly=y-9-tier*10;
@@ -660,7 +828,6 @@ function renderBracket(){
       labels+=`<text x="${px}" y="${ly}" fill="${labCol}" font-size="8.5" font-family="var(--mono)"
         text-anchor="middle" font-weight="${labW}">${fmtDial(p.val)}</text>`;
     });
-
     rows+=`
       <text x="${L-12}" y="${y-2}" fill="var(--ink)" font-size="12" font-family="var(--mono)" text-anchor="end">${esc(t.n)}</text>
       <text x="${L-12}" y="${y+11}" fill="var(--ink-faint)" font-size="9.5" font-family="var(--mono)" text-anchor="end">n=${b.n} · w ${fmt2(t.mil)}</text>
@@ -681,16 +848,34 @@ function renderBracket(){
       <div class="co-body">${strat.text}</div></div>`;
   });
 
-  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wind hold brackets on a Mil-XT style windage scale">
-      ${guides}${axis}${rows}</svg>
-    <div class="legend">
+  const modeToggle=`
+    <div class="view-toggle">
+      <span class="vt-label">View</span>
+      <div class="vt-seg">
+        <button class="${mode==='float'?'on':''}" onclick="setViewMode(${s.id},'float')">Float</button>
+        <button class="${mode==='locked'?'on':''}" onclick="setViewMode(${s.id},'locked')">Locked</button>
+      </div>
+      <span class="vt-hint">${mode==='locked'?'targets pinned — use − / + to set each hold':'window centres on your reads'}</span>
+    </div>`;
+
+  const legendFloat=`
       <span><span style="color:#e0392f">┃</span> reticle centre</span>
       <span>● recommended hold</span><span>· each reading</span>
       <span>▬ safe band (hits all reads)</span>
       <span><span style="color:var(--ok)">■</span> send</span>
       <span><span style="color:var(--warn)">■</span> tight</span>
-      <span><span style="color:var(--bad)">■</span> bracket</span>
-    </div>
+      <span><span style="color:var(--bad)">■</span> bracket</span>`;
+  const legendLocked=`
+      <span><span style="color:#e0392f">┃</span> reticle centre</span>
+      <span><span style="color:var(--brass)">▮</span> locked hold (± to move)</span>
+      <span>⌐¬ fixed plate</span>
+      <span><span style="color:var(--ok)">●</span> read on plate</span>
+      <span><span style="color:var(--bad)">●</span> read off plate</span>`;
+
+  el.innerHTML=`${modeToggle}
+    <svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Wind hold brackets on a Mil-XT style windage scale">
+      ${guides}${axis}${rows}</svg>
+    <div class="legend">${mode==='locked'?legendLocked:legendFloat}</div>
     <div class="callouts">${callouts}</div>`;
 }
 
